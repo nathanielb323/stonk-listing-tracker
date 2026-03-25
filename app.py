@@ -58,6 +58,18 @@ st.markdown(
         background: #fafafa;
         border-right: 1px solid #e6e6e6;
     }
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] .stMarkdown,
+    section[data-testid="stSidebar"] .stCaption,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] div {
+        color: #111111;
+    }
+    section[data-testid="stSidebar"] [data-testid="stTickBarMin"],
+    section[data-testid="stSidebar"] [data-testid="stTickBarMax"] {
+        color: #111111;
+    }
     .hero {
         background: #ffffff;
         border: 1px solid #dedede;
@@ -239,10 +251,8 @@ def build_display_df(
     selected_themes,
     vol_buffer,
     score_buffer,
-    narrative_weight,
     not_hl_weight,
     momentum_weight,
-    mm_weight,
     list_now_min,
     monitor_min,
     watch_min,
@@ -277,62 +287,48 @@ def build_display_df(
     if df.empty:
         return df
 
-    m_vals, n_vals, o_vals, p_vals, notes_vals = [], [], [], [], []
+    n_vals, o_vals, notes_vals = [], [], []
     full_scores, recs, reasons = [], [], []
 
     for _, row in df.iterrows():
         ticker = row["Ticker"]
         ms = scores_db.get(ticker, {})
-        narrative = ms.get("narrative")
         not_hl = ms.get("not_hl")
         price_mom = ms.get("price_mom")
-        mm_feas = ms.get("mm_feas")
         notes = ms.get("notes", "")
 
         bonus = 0.0
         reason_parts = [f"Auto {row['Auto Score']:.1f}"]
-        if narrative is not None:
-            add = (narrative / 5) * narrative_weight
-            bonus += add
-            reason_parts.append(f"Narrative +{add:.1f}")
         if not_hl is not None:
             add = not_hl * not_hl_weight
             bonus += add
-            reason_parts.append(f"Not on HL +{add:.1f}")
+            reason_parts.append(f"HL Gap +{add:.1f}")
         if price_mom is not None:
             add = (price_mom / 5) * momentum_weight
             bonus += add
-            reason_parts.append(f"Momentum +{add:.1f}")
-        if mm_feas is not None:
-            add = (mm_feas / 5) * mm_weight
-            bonus += add
-            reason_parts.append(f"MM +{add:.1f}")
+            reason_parts.append(f"Mom +{add:.1f}")
 
         score = round(float(row["Auto Score"]) + bonus, 1)
         rec = recommendation_from_score(score, list_now_min, monitor_min, watch_min)
 
-        m_vals.append(narrative)
         n_vals.append(not_hl)
         o_vals.append(price_mom)
-        p_vals.append(mm_feas)
         notes_vals.append(notes)
         full_scores.append(score)
         recs.append(rec)
         reasons.append(" | ".join(reason_parts))
 
-    df["M: Narrative"] = m_vals
-    df["N: Not on HL"] = n_vals
-    df["O: Momentum"] = o_vals
-    df["P: MM Feas."] = p_vals
+    df["HL Gap"] = n_vals
+    df["Momentum"] = o_vals
     df["Full R/R"] = full_scores
     df["Recommendation"] = recs
     df["Score Detail"] = reasons
     df["Notes"] = notes_vals
 
     order_cols = [
-        "Bucket", "Ticker", "Company", "Theme", "Sector", "Sub-Industry",
+        "Bucket", "Ticker", "Company", "Theme",
         "Price ($)", "Mkt Cap ($B)", "Today Vol ($M)", "30D Avg Vol ($M)", "D/D %", "M/M %",
-        "Auto Score", "M: Narrative", "N: Not on HL", "O: Momentum", "P: MM Feas.",
+        "Auto Score", "HL Gap", "Momentum",
         "Full R/R", "Recommendation", "Score Detail", "Notes", "Business Summary",
     ]
     df = df[order_cols]
@@ -359,10 +355,8 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### Ranking Weights")
-    narrative_weight = st.slider("Narrative weight", 0.0, 4.0, 2.0, step=0.5)
     not_hl_weight = st.slider("Not on HL weight", 0.0, 3.0, 1.5, step=0.5)
     momentum_weight = st.slider("Momentum weight", 0.0, 3.0, 1.0, step=0.5)
-    mm_weight = st.slider("MM feasibility weight", 0.0, 3.0, 1.0, step=0.5)
 
     st.divider()
     st.markdown("### Recommendation Bands")
@@ -421,10 +415,8 @@ df_display = build_display_df(
     selected_themes=selected_themes or ["All"],
     vol_buffer=vol_buffer,
     score_buffer=score_buffer,
-    narrative_weight=narrative_weight,
     not_hl_weight=not_hl_weight,
     momentum_weight=momentum_weight,
-    mm_weight=mm_weight,
     list_now_min=list_now_min,
     monitor_min=monitor_min,
     watch_min=watch_min,
@@ -452,7 +444,7 @@ st.markdown(
     """
 <div class="panel">
   <h3>How ranking works</h3>
-  <p>Full R/R = Auto Score + manual bonuses. Auto Score comes from current dollar volume plus day-over-day and month-over-month trend strength. Manual bonuses use the adjustable weights in the sidebar for Narrative, Not on HL, Momentum, and MM Feasibility.</p>
+  <p>Full R/R = Auto Score + manual bonuses. Auto Score comes from current dollar volume plus day-over-day and month-over-month trend strength. Manual bonuses use the adjustable weights in the sidebar for HL Gap and Momentum.</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -462,10 +454,12 @@ with st.expander("Current ranking formula and thresholds", expanded=False):
     st.markdown(
         f"""
 - **Auto Score**: generated from liquidity and trend data
-- **Narrative bonus**: `(Narrative / 5) × {narrative_weight:.1f}`
-- **Not on HL bonus**: `Not on HL × {not_hl_weight:.1f}`
-- **Momentum bonus**: `(Momentum / 5) × {momentum_weight:.1f}`
-- **MM Feasibility bonus**: `(MM Feasibility / 5) × {mm_weight:.1f}`
+- **HL Gap**: `HL Gap × {not_hl_weight:.1f}`
+- **Momentum**: `(Momentum / 5) × {momentum_weight:.1f}`
+
+**Legend**
+- `HL Gap` = 1 if not on Hyperliquid, else 0
+- `Momentum` = manual 1 to 5 score
 
 **Recommendation bands**
 - `🟢 LIST NOW` at **{list_now_min:.1f}+**
@@ -475,6 +469,8 @@ with st.expander("Current ranking formula and thresholds", expanded=False):
 """
     )
 
+st.caption("Legend: HL Gap = not on Hyperliquid (0 or 1). Mom = manual momentum score (1 to 5). D/D and M/M are volume trend changes versus yesterday and the 30-day average.")
+
 if df_display.empty:
     st.info("No stocks match your current settings. Lower the volume or score thresholds, or add more near-cutoff rows.")
 else:
@@ -483,8 +479,6 @@ else:
         "Ticker": st.column_config.TextColumn("Ticker", width="small", disabled=True),
         "Company": st.column_config.TextColumn("Company", width="medium", disabled=True),
         "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived automatically from company description + sector metadata."),
-        "Sector": st.column_config.TextColumn("Sector", width="medium", disabled=True),
-        "Sub-Industry": st.column_config.TextColumn("Sub-Industry", width="medium", disabled=True),
         "Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.2f", disabled=True),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
         "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True),
@@ -492,10 +486,8 @@ else:
         "D/D %": st.column_config.NumberColumn("D/D %", format="%.1f%%", disabled=True),
         "M/M %": st.column_config.NumberColumn("M/M %", format="%.1f%%", disabled=True),
         "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True),
-        "M: Narrative": st.column_config.NumberColumn("M: Narrative", min_value=1, max_value=5, step=1),
-        "N: Not on HL": st.column_config.NumberColumn("N: Not on HL", min_value=0, max_value=1, step=1),
-        "O: Momentum": st.column_config.NumberColumn("O: Momentum", min_value=1, max_value=5, step=1),
-        "P: MM Feas.": st.column_config.NumberColumn("P: MM Feas.", min_value=1, max_value=5, step=1),
+        "HL Gap": st.column_config.NumberColumn("HL Gap", min_value=0, max_value=1, step=1, help="1 if not on Hyperliquid, else 0"),
+        "Momentum": st.column_config.NumberColumn("Momentum", min_value=1, max_value=5, step=1, help="Manual momentum score, 1 to 5"),
         "Full R/R": st.column_config.NumberColumn("Full R/R", format="%.1f", disabled=True),
         "Recommendation": st.column_config.TextColumn("Recommendation", width="medium", disabled=True),
         "Score Detail": st.column_config.TextColumn("Score Detail", width="large", disabled=True),
@@ -511,10 +503,9 @@ else:
         num_rows="fixed",
         key="main_table",
         column_order=[
-            "Bucket", "Ticker", "Company", "Theme", "Sector", "Price ($)", "Mkt Cap ($B)",
+            "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
             "Today Vol ($M)", "30D Avg Vol ($M)", "D/D %", "M/M %", "Auto Score",
-            "M: Narrative", "N: Not on HL", "O: Momentum", "P: MM Feas.",
-            "Full R/R", "Recommendation", "Score Detail", "Notes", "Business Summary",
+            "HL Gap", "Momentum", "Full R/R", "Recommendation", "Score Detail", "Notes", "Business Summary",
         ],
     )
 
@@ -524,22 +515,14 @@ else:
         for _, row in edited_df.iterrows():
             bonus = 0.0
             parts = [f"Auto {float(row['Auto Score']):.1f}"]
-            if pd.notna(row.get("M: Narrative")):
-                add = (float(row["M: Narrative"]) / 5) * narrative_weight
+            if pd.notna(row.get("HL Gap")):
+                add = float(row["HL Gap"]) * not_hl_weight
                 bonus += add
-                parts.append(f"Narrative +{add:.1f}")
-            if pd.notna(row.get("N: Not on HL")):
-                add = float(row["N: Not on HL"]) * not_hl_weight
+                parts.append(f"HL Gap +{add:.1f}")
+            if pd.notna(row.get("Momentum")):
+                add = (float(row["Momentum"]) / 5) * momentum_weight
                 bonus += add
-                parts.append(f"Not on HL +{add:.1f}")
-            if pd.notna(row.get("O: Momentum")):
-                add = (float(row["O: Momentum"]) / 5) * momentum_weight
-                bonus += add
-                parts.append(f"Momentum +{add:.1f}")
-            if pd.notna(row.get("P: MM Feas.")):
-                add = (float(row["P: MM Feas."]) / 5) * mm_weight
-                bonus += add
-                parts.append(f"MM +{add:.1f}")
+                parts.append(f"Mom +{add:.1f}")
 
             score = round(float(row["Auto Score"]) + bonus, 1)
             rec = recommendation_from_score(score, list_now_min, monitor_min, watch_min)
@@ -563,14 +546,10 @@ else:
         for _, row in edited_df.iterrows():
             ticker = row["Ticker"]
             entry = {}
-            if pd.notna(row.get("M: Narrative")):
-                entry["narrative"] = int(row["M: Narrative"])
-            if pd.notna(row.get("N: Not on HL")):
-                entry["not_hl"] = int(row["N: Not on HL"])
-            if pd.notna(row.get("O: Momentum")):
-                entry["price_mom"] = int(row["O: Momentum"])
-            if pd.notna(row.get("P: MM Feas.")):
-                entry["mm_feas"] = int(row["P: MM Feas."])
+            if pd.notna(row.get("HL Gap")):
+                entry["not_hl"] = int(row["HL Gap"])
+            if pd.notna(row.get("Momentum")):
+                entry["price_mom"] = int(row["Momentum"])
             if row.get("Notes"):
                 entry["notes"] = str(row["Notes"])
             if entry:
