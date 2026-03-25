@@ -1,13 +1,12 @@
 """
 Cascade Equity Perp Listing Tracker
-===================================
-Updated Streamlit dashboard with:
-- current Cascade markets excluded
-- derived theme column from company descriptions
-- adjustable cutoff controls
-- near-cutoff rows
-- black and white UI
-- adjustable ranking weights + recommendation thresholds
+
+Features:
+- Excludes currently live Cascade markets by default
+- Derives a Theme from company description + sector metadata
+- Lets users tune screening cutoffs and ranking weights
+- Adds near-cutoff rows for borderline candidates
+- Keeps manual shared inputs in Supabase
 """
 
 from datetime import datetime
@@ -51,24 +50,19 @@ st.markdown(
         color: #111111;
     }
     .block-container {
-        padding-top: 1.15rem;
+        padding-top: 1.1rem;
         padding-bottom: 2rem;
     }
     section[data-testid="stSidebar"] {
         background: #fafafa;
         border-right: 1px solid #e6e6e6;
     }
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] .stMarkdown,
-    section[data-testid="stSidebar"] .stCaption,
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span,
-    section[data-testid="stSidebar"] div {
-        color: #111111;
+    section[data-testid="stSidebar"] * {
+        color: #111111 !important;
     }
-    section[data-testid="stSidebar"] [data-testid="stTickBarMin"],
-    section[data-testid="stSidebar"] [data-testid="stTickBarMax"] {
-        color: #111111;
+    section[data-testid="stSidebar"] [data-baseweb="slider"] span,
+    section[data-testid="stSidebar"] [data-baseweb="slider"] div {
+        color: #111111 !important;
     }
     .hero {
         background: #ffffff;
@@ -123,14 +117,23 @@ st.markdown(
     .panel h3 {
         margin-top: 0;
         margin-bottom: 6px;
-        font-size: 1.08rem;
+        font-size: 1.05rem;
         letter-spacing: -0.03em;
         color: #111111;
     }
-    .panel p {
+    .panel p, .panel li {
         color: #666666;
         font-size: 0.9rem;
-        margin-top: 0;
+    }
+    .legend {
+        background: #ffffff;
+        border: 1px solid #dedede;
+        border-radius: 16px;
+        padding: 14px 16px;
+        margin-top: 12px;
+    }
+    .legend strong {
+        color: #111111;
     }
     div[data-testid="stButton"] button {
         border-radius: 999px;
@@ -215,16 +218,15 @@ def build_base_rows(df_market, meta, profiles):
             {
                 "Ticker": ticker,
                 "Company": company,
-                "Sector": sector,
-                "Sub-Industry": sub_industry,
                 "Theme": classify_theme(company, sector, sub_industry, summary),
                 "Business Summary": summary,
                 "Price ($)": row["current_price"],
                 "Mkt Cap ($B)": round(market_cap / 1e9, 1) if market_cap else None,
                 "Today Vol ($M)": int(row["today_vol_m"]),
-                "30D Avg Vol ($M)": int(row["avg_30d_vol_m"]),
-                "D/D %": row["dd_pct"],
-                "M/M %": row["mm_pct"],
+                "5D Avg Vol ($M)": int(row["avg_5d_vol_m"]),
+                "20D Avg Vol ($M)": int(row["avg_20d_vol_m"]),
+                "5D vs 20D %": row["build_pct"],
+                "Today vs 5D %": row["heat_pct"],
                 "Auto Score": row["auto_score"],
             }
         )
@@ -235,7 +237,7 @@ def recommendation_from_score(score: float, list_now_min: float, monitor_min: fl
     if score >= list_now_min:
         return "🟢 LIST NOW"
     if score >= monitor_min:
-        return "🟡 MONITOR CLOSELY"
+        return "🟡 MONITOR"
     if score >= watch_min:
         return "⚪ WATCH"
     return "⚫ SKIP"
@@ -245,13 +247,13 @@ def build_display_df(
     base_df,
     scores_db,
     min_vol,
-    min_score,
+    min_auto_score,
     near_cutoff_count,
     exclude_current,
     selected_themes,
     vol_buffer,
     score_buffer,
-    not_hl_weight,
+    hl_gap_weight,
     momentum_weight,
     list_now_min,
     monitor_min,
@@ -261,6 +263,7 @@ def build_display_df(
         return base_df
 
     working = base_df.copy()
+
     if exclude_current:
         working = working[~working["Ticker"].isin(CURRENT_CASCADE_MARKETS)]
 
@@ -269,14 +272,14 @@ def build_display_df(
 
     qualified = working[
         (working["Today Vol ($M)"] >= min_vol) &
-        (working["Auto Score"] >= min_score)
+        (working["Auto Score"] >= min_auto_score)
     ].copy()
     qualified["Bucket"] = "Qualified"
 
     near_cutoff = working[
         (
             ((working["Today Vol ($M)"] < min_vol) & (working["Today Vol ($M)"] >= max(0, min_vol - vol_buffer))) |
-            ((working["Auto Score"] < min_score) & (working["Auto Score"] >= max(0, min_score - score_buffer)))
+            ((working["Auto Score"] < min_auto_score) & (working["Auto Score"] >= max(0, min_auto_score - score_buffer)))
         )
     ].copy()
     near_cutoff = near_cutoff[~near_cutoff["Ticker"].isin(qualified["Ticker"])]
@@ -287,56 +290,64 @@ def build_display_df(
     if df.empty:
         return df
 
-    n_vals, o_vals, notes_vals = [], [], []
+    hl_gap_vals, momentum_vals, notes_vals = [], [], []
     full_scores, recs, reasons = [], [], []
 
     for _, row in df.iterrows():
         ticker = row["Ticker"]
-        ms = scores_db.get(ticker, {})
-        not_hl = ms.get("not_hl")
-        price_mom = ms.get("price_mom")
-        notes = ms.get("notes", "")
+        manual = scores_db.get(ticker, {})
+
+        hl_gap = manual.get("not_hl")
+        momentum = manual.get("price_mom")
+        notes = manual.get("notes", "")
 
         bonus = 0.0
-        reason_parts = [f"Auto {row['Auto Score']:.1f}"]
-        if not_hl is not None:
-            add = not_hl * not_hl_weight
+        reason_parts = [f"Auto {float(row['Auto Score']):.1f}"]
+
+        if hl_gap is not None:
+            add = float(hl_gap) * hl_gap_weight
             bonus += add
             reason_parts.append(f"HL Gap +{add:.1f}")
-        if price_mom is not None:
-            add = (price_mom / 5) * momentum_weight
+
+        if momentum is not None:
+            add = (float(momentum) / 5.0) * momentum_weight
             bonus += add
-            reason_parts.append(f"Mom +{add:.1f}")
+            reason_parts.append(f"Momentum +{add:.1f}")
 
         score = round(float(row["Auto Score"]) + bonus, 1)
         rec = recommendation_from_score(score, list_now_min, monitor_min, watch_min)
 
-        n_vals.append(not_hl)
-        o_vals.append(price_mom)
+        hl_gap_vals.append(hl_gap)
+        momentum_vals.append(momentum)
         notes_vals.append(notes)
         full_scores.append(score)
         recs.append(rec)
         reasons.append(" | ".join(reason_parts))
 
-    df["HL Gap"] = n_vals
-    df["Momentum"] = o_vals
+    df["HL Gap"] = hl_gap_vals
+    df["Momentum"] = momentum_vals
     df["Full R/R"] = full_scores
     df["Recommendation"] = recs
-    df["Score Detail"] = reasons
+    df["Why"] = reasons
     df["Notes"] = notes_vals
 
     order_cols = [
-        "Bucket", "Ticker", "Company", "Theme",
-        "Price ($)", "Mkt Cap ($B)", "Today Vol ($M)", "30D Avg Vol ($M)", "D/D %", "M/M %",
-        "Auto Score", "HL Gap", "Momentum",
-        "Full R/R", "Recommendation", "Score Detail", "Notes", "Business Summary",
+        "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
+        "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
+        "5D vs 20D %", "Today vs 5D %", "Auto Score",
+        "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary",
     ]
     df = df[order_cols]
-    return df.sort_values(["Bucket", "Full R/R", "Today Vol ($M)"], ascending=[True, False, False]).reset_index(drop=True)
+
+    bucket_order = pd.Categorical(df["Bucket"], categories=["Qualified", "Near Cutoff"], ordered=True)
+    df = df.assign(_bucket_order=bucket_order)
+    df = df.sort_values(["_bucket_order", "Full R/R", "Today Vol ($M)"], ascending=[True, False, False]).drop(columns=["_bucket_order"])
+    return df.reset_index(drop=True)
 
 
 with st.sidebar:
     st.markdown("### Controls")
+
     if st.button("Refresh Market Data", use_container_width=True):
         load_market_data.clear()
         build_base_rows.clear()
@@ -347,22 +358,22 @@ with st.sidebar:
     st.divider()
     st.markdown("### Screen")
     min_vol = st.slider("Min daily dollar volume ($M)", 100, 5000, 500, step=50)
-    min_score = st.slider("Min auto score", 0.0, 7.0, 0.0, step=0.5)
+    min_auto_score = st.slider("Min auto score", 0.0, 10.0, 3.0, step=0.5)
     near_cutoff_count = st.slider("Near-cutoff extras", 0, 30, 10, step=1)
     vol_buffer = st.slider("Near-cutoff volume window ($M)", 25, 500, 150, step=25)
-    score_buffer = st.slider("Near-cutoff auto-score window", 0.5, 3.0, 1.0, step=0.5)
-    exclude_current = st.toggle("Exclude currently live Cascade markets", value=True)
+    score_buffer = st.slider("Near-cutoff auto-score window", 0.5, 4.0, 1.0, step=0.5)
+    exclude_current = st.toggle("Exclude live Cascade markets", value=True)
 
     st.divider()
     st.markdown("### Ranking Weights")
-    not_hl_weight = st.slider("Not on HL weight", 0.0, 3.0, 1.5, step=0.5)
-    momentum_weight = st.slider("Momentum weight", 0.0, 3.0, 1.0, step=0.5)
+    hl_gap_weight = st.slider("HL Gap weight", 0.0, 4.0, 1.5, step=0.5)
+    momentum_weight = st.slider("Momentum weight", 0.0, 4.0, 1.5, step=0.5)
 
     st.divider()
     st.markdown("### Recommendation Bands")
-    list_now_min = st.slider("List Now minimum", 4.0, 12.0, 8.0, step=0.5)
-    monitor_min = st.slider("Monitor minimum", 2.0, 10.0, 5.5, step=0.5)
-    watch_min = st.slider("Watch minimum", 0.0, 8.0, 4.0, step=0.5)
+    list_now_min = st.slider("List Now minimum", 4.0, 12.0, 7.0, step=0.5)
+    monitor_min = st.slider("Monitor minimum", 2.0, 10.0, 5.0, step=0.5)
+    watch_min = st.slider("Watch minimum", 0.0, 8.0, 3.5, step=0.5)
 
     if monitor_min > list_now_min:
         monitor_min = list_now_min
@@ -373,8 +384,8 @@ with st.sidebar:
     st.markdown("### Recommendation Filter")
     show_rec = st.multiselect(
         "Show recommendations",
-        ["🟢 LIST NOW", "🟡 MONITOR CLOSELY", "⚪ WATCH", "⚫ SKIP"],
-        default=["🟢 LIST NOW", "🟡 MONITOR CLOSELY", "⚪ WATCH", "⚫ SKIP"],
+        ["🟢 LIST NOW", "🟡 MONITOR", "⚪ WATCH", "⚫ SKIP"],
+        default=["🟢 LIST NOW", "🟡 MONITOR", "⚪ WATCH", "⚫ SKIP"],
     )
 
 refresh_ts = st.session_state.last_refresh or "Not yet loaded"
@@ -382,7 +393,7 @@ st.markdown(
     f"""
 <div class="hero">
   <div class="hero-title">Markets</div>
-  <div class="hero-subtitle">S&P 500 screen for equity perp listing candidates. Current Cascade markets excluded by default. Last refresh: {refresh_ts}</div>
+  <div class="hero-subtitle">S&amp;P 500 screen for equity perp listing candidates. Current Cascade markets excluded by default. Last refresh: {refresh_ts}</div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -399,9 +410,9 @@ else:
 
 scores_db = db.load_scores()
 base_df = build_base_rows(df_market, meta, profiles)
+
 all_themes = sorted(base_df["Theme"].dropna().unique().tolist()) if not base_df.empty else []
 selected_themes = st.multiselect("Filter by theme", ["All"] + all_themes, default=["All"])
-
 if selected_themes != ["All"] and "All" in selected_themes:
     selected_themes = [x for x in selected_themes if x != "All"]
 
@@ -409,13 +420,13 @@ df_display = build_display_df(
     base_df=base_df,
     scores_db=scores_db,
     min_vol=min_vol,
-    min_score=min_score,
+    min_auto_score=min_auto_score,
     near_cutoff_count=near_cutoff_count,
     exclude_current=exclude_current,
     selected_themes=selected_themes or ["All"],
     vol_buffer=vol_buffer,
     score_buffer=score_buffer,
-    not_hl_weight=not_hl_weight,
+    hl_gap_weight=hl_gap_weight,
     momentum_weight=momentum_weight,
     list_now_min=list_now_min,
     monitor_min=monitor_min,
@@ -434,7 +445,7 @@ m1, m2, m3, m4 = st.columns(4)
 with m1:
     st.markdown(f'<div class="metric-wrap"><div class="metric-label">Qualified names</div><div class="metric-num">{qualifying_count}</div><div class="metric-sub">meeting current cutoffs</div></div>', unsafe_allow_html=True)
 with m2:
-    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Near cutoff</div><div class="metric-num">{near_count}</div><div class="metric-sub">extra rows for borderline names</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Near cutoff</div><div class="metric-num">{near_count}</div><div class="metric-sub">borderline names kept in view</div></div>', unsafe_allow_html=True)
 with m3:
     st.markdown(f'<div class="metric-wrap"><div class="metric-label">List now</div><div class="metric-num">{list_now}</div><div class="metric-sub">top current recommendations</div></div>', unsafe_allow_html=True)
 with m4:
@@ -443,36 +454,49 @@ with m4:
 st.markdown(
     """
 <div class="panel">
-  <h3>How ranking works</h3>
-  <p>Full R/R = Auto Score + manual bonuses. Auto Score comes from current dollar volume plus day-over-day and month-over-month trend strength. Manual bonuses use the adjustable weights in the sidebar for HL Gap and Momentum.</p>
+  <h3>How the volume signal works</h3>
+  <p><strong>5D vs 20D %</strong> measures whether volume has been building over the last week relative to the last month. <strong>Today vs 5D %</strong> measures whether today is still heating up versus recent volume. Auto Score combines liquidity, build, and heat. Manual inputs then layer on top.</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-with st.expander("Current ranking formula and thresholds", expanded=False):
+st.markdown(
+    """
+<div class="legend">
+  <strong>Legend</strong><br>
+  <strong>HL Gap</strong> = whether the name is not on Hyperliquid yet (0 or 1).<br>
+  <strong>Momentum</strong> = your manual 1 to 5 read on non-volume momentum.<br>
+  <strong>Auto Score</strong> = liquidity + build + heat score from market data.<br>
+  <strong>Full R/R</strong> = Auto Score + manual bonuses.
+</div>
+""",
+    unsafe_allow_html=True,
+)
+
+with st.expander("Definitions and formula details", expanded=False):
     st.markdown(
         f"""
-- **Auto Score**: generated from liquidity and trend data
-- **HL Gap**: `HL Gap × {not_hl_weight:.1f}`
-- **Momentum**: `(Momentum / 5) × {momentum_weight:.1f}`
+- **Today Vol ($M)**: today's dollar volume in millions
+- **5D Avg Vol ($M)**: average daily dollar volume over the last 5 trading days
+- **20D Avg Vol ($M)**: average daily dollar volume over the last 20 trading days
+- **5D vs 20D %**: `((5D Avg - 20D Avg) / 20D Avg) × 100`
+- **Today vs 5D %**: `((Today Vol - 5D Avg) / 5D Avg) × 100`
 
-**Legend**
-- `HL Gap` = 1 if not on Hyperliquid, else 0
-- `Momentum` = manual 1 to 5 score
+**Manual bonus**
+- `HL Gap × {hl_gap_weight:.1f}`
+- `(Momentum / 5) × {momentum_weight:.1f}`
 
 **Recommendation bands**
 - `🟢 LIST NOW` at **{list_now_min:.1f}+**
-- `🟡 MONITOR CLOSELY` at **{monitor_min:.1f}+**
+- `🟡 MONITOR` at **{monitor_min:.1f}+**
 - `⚪ WATCH` at **{watch_min:.1f}+**
 - `⚫ SKIP` below **{watch_min:.1f}**
 """
     )
 
-st.caption("Legend: HL Gap = not on Hyperliquid (0 or 1). Mom = manual momentum score (1 to 5). D/D and M/M are volume trend changes versus yesterday and the 30-day average.")
-
 if df_display.empty:
-    st.info("No stocks match your current settings. Lower the volume or score thresholds, or add more near-cutoff rows.")
+    st.info("No stocks match your current settings. Lower the cutoffs or add more near-cutoff rows.")
 else:
     col_config = {
         "Bucket": st.column_config.TextColumn("Bucket", width="small", disabled=True),
@@ -481,18 +505,19 @@ else:
         "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived automatically from company description + sector metadata."),
         "Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.2f", disabled=True),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
-        "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True),
-        "30D Avg Vol ($M)": st.column_config.NumberColumn("30D Avg Vol ($M)", format="%,d", disabled=True),
-        "D/D %": st.column_config.NumberColumn("D/D %", format="%.1f%%", disabled=True),
-        "M/M %": st.column_config.NumberColumn("M/M %", format="%.1f%%", disabled=True),
-        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True),
-        "HL Gap": st.column_config.NumberColumn("HL Gap", min_value=0, max_value=1, step=1, help="1 if not on Hyperliquid, else 0"),
-        "Momentum": st.column_config.NumberColumn("Momentum", min_value=1, max_value=5, step=1, help="Manual momentum score, 1 to 5"),
-        "Full R/R": st.column_config.NumberColumn("Full R/R", format="%.1f", disabled=True),
+        "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
+        "5D Avg Vol ($M)": st.column_config.NumberColumn("5D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
+        "20D Avg Vol ($M)": st.column_config.NumberColumn("20D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 20 trading days."),
+        "5D vs 20D %": st.column_config.NumberColumn("5D vs 20D %", format="%.1f%%", disabled=True, help="Whether volume has been building over the last week versus the last month."),
+        "Today vs 5D %": st.column_config.NumberColumn("Today vs 5D %", format="%.1f%%", disabled=True, help="Whether today is hotter or cooler than the recent 5-day baseline."),
+        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True, help="Score built from liquidity, build, and heat."),
+        "HL Gap": st.column_config.NumberColumn("HL Gap", min_value=0, max_value=1, step=1, help="1 if the name is not on Hyperliquid yet, otherwise 0."),
+        "Momentum": st.column_config.NumberColumn("Momentum", min_value=1, max_value=5, step=1, help="Your manual momentum read from 1 to 5."),
+        "Full R/R": st.column_config.NumberColumn("Full R/R", format="%.1f", disabled=True, help="Auto Score plus manual bonus."),
         "Recommendation": st.column_config.TextColumn("Recommendation", width="medium", disabled=True),
-        "Score Detail": st.column_config.TextColumn("Score Detail", width="large", disabled=True),
+        "Why": st.column_config.TextColumn("Why", width="large", disabled=True, help="Breakdown of the current score."),
         "Notes": st.column_config.TextColumn("Notes", width="large"),
-        "Business Summary": st.column_config.TextColumn("Business Summary", width="large", disabled=True),
+        "Business Summary": st.column_config.TextColumn("Business Summary", width="large", disabled=True, help="Company description used for theme classification."),
     }
 
     edited_df = st.data_editor(
@@ -504,35 +529,38 @@ else:
         key="main_table",
         column_order=[
             "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
-            "Today Vol ($M)", "30D Avg Vol ($M)", "D/D %", "M/M %", "Auto Score",
-            "HL Gap", "Momentum", "Full R/R", "Recommendation", "Score Detail", "Notes", "Business Summary",
+            "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
+            "5D vs 20D %", "Today vs 5D %", "Auto Score",
+            "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes"
         ],
     )
 
-    # Recalculate live after edits so the table reflects current controls immediately
     if not edited_df.empty:
         detail_vals, full_vals, rec_vals = [], [], []
         for _, row in edited_df.iterrows():
             bonus = 0.0
             parts = [f"Auto {float(row['Auto Score']):.1f}"]
+
             if pd.notna(row.get("HL Gap")):
-                add = float(row["HL Gap"]) * not_hl_weight
+                add = float(row["HL Gap"]) * hl_gap_weight
                 bonus += add
                 parts.append(f"HL Gap +{add:.1f}")
+
             if pd.notna(row.get("Momentum")):
-                add = (float(row["Momentum"]) / 5) * momentum_weight
+                add = (float(row["Momentum"]) / 5.0) * momentum_weight
                 bonus += add
-                parts.append(f"Mom +{add:.1f}")
+                parts.append(f"Momentum +{add:.1f}")
 
             score = round(float(row["Auto Score"]) + bonus, 1)
             rec = recommendation_from_score(score, list_now_min, monitor_min, watch_min)
+
             full_vals.append(score)
             rec_vals.append(rec)
             detail_vals.append(" | ".join(parts))
 
         edited_df["Full R/R"] = full_vals
         edited_df["Recommendation"] = rec_vals
-        edited_df["Score Detail"] = detail_vals
+        edited_df["Why"] = detail_vals
 
     save_col, status_col = st.columns([1, 4])
     with save_col:
@@ -546,12 +574,14 @@ else:
         for _, row in edited_df.iterrows():
             ticker = row["Ticker"]
             entry = {}
+
             if pd.notna(row.get("HL Gap")):
                 entry["not_hl"] = int(row["HL Gap"])
             if pd.notna(row.get("Momentum")):
                 entry["price_mom"] = int(row["Momentum"])
             if row.get("Notes"):
                 entry["notes"] = str(row["Notes"])
+
             if entry:
                 new_scores[ticker] = entry
 

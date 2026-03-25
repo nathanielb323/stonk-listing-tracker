@@ -1,7 +1,7 @@
 """
 fetcher.py — S&P 500 screening via yfinance
-Fetches price + volume data, computes dollar-volume metrics, and enriches
-filtered candidates with market-cap + company-description metadata.
+Fetches price + volume data, computes liquidity and volume-build signals,
+and enriches candidates with market-cap + company-description metadata.
 """
 
 import re
@@ -12,9 +12,8 @@ import yfinance as yf
 
 warnings.filterwarnings("ignore")
 
-DEFAULT_MIN_VOL_M = 500
-LOOKBACK = 38
-TOP_N = 120
+LOOKBACK = 45
+TOP_N = 140
 CHUNK_SIZE = 100
 CHUNK_DELAY = 1.2
 PROFILE_DELAY = 0.08
@@ -74,7 +73,7 @@ def fetch_ohlcv(tickers: list) -> dict:
                         if len(chunk) > 1
                         else raw[["Close", "Volume"]].dropna()
                     )
-                    if len(df) >= 5:
+                    if len(df) >= 20:
                         all_data[ticker] = df
                 except Exception:
                     pass
@@ -88,7 +87,7 @@ def fetch_ohlcv(tickers: list) -> dict:
 
 
 def compute_metrics(all_data: dict) -> pd.DataFrame:
-    """Calculate dollar-volume metrics and auto-score each ticker."""
+    """Calculate liquidity, build, and heat metrics for each ticker."""
     rows = []
     for ticker, df in all_data.items():
         try:
@@ -96,37 +95,62 @@ def compute_metrics(all_data: dict) -> pd.DataFrame:
             local_df["dv"] = local_df["Close"] * local_df["Volume"] / 1e6
 
             today_vol = float(local_df["dv"].iloc[-1])
-            yest_vol = float(local_df["dv"].iloc[-2])
-            avg_30d = float(local_df["dv"].iloc[-min(30, len(local_df)) :].mean())
+            avg_5d = float(local_df["dv"].iloc[-5:].mean())
+            avg_20d = float(local_df["dv"].iloc[-20:].mean())
 
-            dd_pct = (today_vol - yest_vol) / yest_vol if yest_vol > 0 else 0
-            mm_pct = (today_vol - avg_30d) / avg_30d if avg_30d > 0 else 0
+            build_pct = ((avg_5d - avg_20d) / avg_20d) * 100 if avg_20d > 0 else 0.0
+            heat_pct = ((today_vol - avg_5d) / avg_5d) * 100 if avg_5d > 0 else 0.0
 
             if today_vol >= 5000:
-                vol_s = 5
-            elif today_vol >= 2000:
-                vol_s = 4
-            elif today_vol >= 1000:
-                vol_s = 3
+                liq_s = 5.0
+            elif today_vol >= 2500:
+                liq_s = 4.0
+            elif today_vol >= 1250:
+                liq_s = 3.0
             elif today_vol >= 750:
-                vol_s = 2.5
+                liq_s = 2.5
             elif today_vol >= 500:
-                vol_s = 2
+                liq_s = 2.0
+            elif today_vol >= 250:
+                liq_s = 1.5
             else:
-                vol_s = 1
+                liq_s = 1.0
 
-            dd_b = 1.0 if dd_pct > 0.05 else (0.5 if dd_pct > 0 else -0.5)
-            mm_b = 1.0 if mm_pct > 0.10 else (0.5 if mm_pct > 0 else -0.5)
+            if build_pct >= 50:
+                build_s = 2.5
+            elif build_pct >= 30:
+                build_s = 2.0
+            elif build_pct >= 15:
+                build_s = 1.5
+            elif build_pct >= 5:
+                build_s = 1.0
+            elif build_pct >= 0:
+                build_s = 0.5
+            elif build_pct >= -10:
+                build_s = 0.0
+            else:
+                build_s = -0.5
+
+            if heat_pct >= 35:
+                heat_s = 1.5
+            elif heat_pct >= 20:
+                heat_s = 1.0
+            elif heat_pct >= 5:
+                heat_s = 0.5
+            elif heat_pct >= -10:
+                heat_s = 0.0
+            else:
+                heat_s = -0.5
 
             rows.append(
                 {
                     "ticker": ticker,
                     "today_vol_m": round(today_vol, 0),
-                    "yest_vol_m": round(yest_vol, 0),
-                    "avg_30d_vol_m": round(avg_30d, 0),
-                    "dd_pct": round(dd_pct * 100, 2),
-                    "mm_pct": round(mm_pct * 100, 2),
-                    "auto_score": round(vol_s + dd_b + mm_b, 2),
+                    "avg_5d_vol_m": round(avg_5d, 0),
+                    "avg_20d_vol_m": round(avg_20d, 0),
+                    "build_pct": round(build_pct, 2),
+                    "heat_pct": round(heat_pct, 2),
+                    "auto_score": round(liq_s + build_s + heat_s, 2),
                     "current_price": round(float(local_df["Close"].iloc[-1]), 2),
                 }
             )
