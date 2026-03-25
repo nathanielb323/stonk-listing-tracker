@@ -1,7 +1,6 @@
+
 """
 fetcher.py — S&P 500 screening via yfinance
-Fetches price + volume data, computes liquidity and volume-build signals,
-and enriches candidates with market-cap + company-description metadata.
 """
 
 import re
@@ -20,7 +19,6 @@ PROFILE_DELAY = 0.08
 
 
 def get_sp500_tickers():
-    """Fetch S&P 500 constituent list from Wikipedia."""
     try:
         table = pd.read_html(
             "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies",
@@ -52,7 +50,6 @@ def get_sp500_tickers():
 
 
 def fetch_ohlcv(tickers: list) -> dict:
-    """Batch-download daily close + volume for all tickers."""
     all_data = {}
     for start in range(0, len(tickers), CHUNK_SIZE):
         chunk = tickers[start : start + CHUNK_SIZE]
@@ -87,7 +84,6 @@ def fetch_ohlcv(tickers: list) -> dict:
 
 
 def compute_metrics(all_data: dict) -> pd.DataFrame:
-    """Calculate liquidity, build, and heat metrics for each ticker."""
     rows = []
     for ticker, df in all_data.items():
         try:
@@ -168,10 +164,9 @@ def _clean_summary(text: str) -> str:
 
 
 def fetch_company_profiles(tickers: list) -> dict:
-    """Fetch market cap + long business summary for a filtered list of tickers."""
     profiles = {}
     for ticker in tickers:
-        profile = {"market_cap": None, "summary": ""}
+        profile = {"market_cap": None, "summary": "", "company_name": ""}
         try:
             t = yf.Ticker(ticker)
             fi = getattr(t, "fast_info", None)
@@ -182,6 +177,7 @@ def fetch_company_profiles(tickers: list) -> dict:
             if profile["market_cap"] is None:
                 profile["market_cap"] = info.get("marketCap")
             profile["summary"] = _clean_summary(info.get("longBusinessSummary") or info.get("description") or "")
+            profile["company_name"] = info.get("longName") or info.get("shortName") or ""
         except Exception:
             pass
 
@@ -191,10 +187,6 @@ def fetch_company_profiles(tickers: list) -> dict:
 
 
 def run_screen():
-    """
-    Full pipeline: fetch tickers → OHLCV → metrics → company profiles.
-    Returns (df_metrics, meta_df, profiles_dict).
-    """
     tickers, meta = get_sp500_tickers()
     ohlcv = fetch_ohlcv(tickers)
     df = compute_metrics(ohlcv)

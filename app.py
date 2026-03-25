@@ -1,12 +1,6 @@
+
 """
 Cascade Equity Perp Listing Tracker
-
-Features:
-- Excludes currently live Cascade markets by default
-- Derives a Theme from company description + sector metadata
-- Lets users tune screening cutoffs and ranking weights
-- Adds near-cutoff rows for borderline candidates
-- Keeps manual shared inputs in Supabase
 """
 
 from datetime import datetime
@@ -27,20 +21,75 @@ CURRENT_CASCADE_MARKETS = {
 }
 
 THEME_RULES = [
-    ("AI / Model Infra", ["artificial intelligence", " ai ", "machine learning", "model", "gpu", "accelerator", "data center", "cloud platform"]),
+    ("AI / Model Infra", ["artificial intelligence", " ai ", "machine learning", "foundation model", "model", "gpu", "accelerator", "data center", "cloud platform"]),
     ("Quantum", ["quantum", "qubit"]),
     ("Crypto / Exchange", ["crypto", "cryptocurrency", "digital asset", "exchange", "wallet", "blockchain", "stablecoin"]),
-    ("Broker / Fintech", ["broker", "brokerage", "trading platform", "payments", "consumer finance", "banking", "lending", "financial technology", "fintech"]),
-    ("Space / Defense", ["space", "satellite", "defense", "missile", "aerospace", "launch"]),
+    ("Broker / Fintech", ["broker", "brokerage", "trading platform", "payments", "consumer finance", "banking platform", "lending", "financial technology", "fintech"]),
+    ("Bank", ["bank", "commercial banking", "investment banking", "asset management", "consumer banking", "wealth management"]),
+    ("Insurance / Managed Care", ["insurance", "managed care", "health benefits", "medical benefits"]),
+    ("Healthcare Services", ["healthcare services", "care delivery", "pharmacy benefit", "medical services"]),
+    ("Biotech / Pharma", ["biotech", "therapeutic", "pharmaceutical", "drug", "obesity", "glp-1", "clinical", "oncology"]),
     ("Semis / Compute", ["semiconductor", "chip", "fab", "processor", "memory", "analog", "microcontroller"]),
-    ("Cybersecurity", ["security", "cyber", "identity", "threat", "endpoint", "firewall"]),
+    ("Cloud / Enterprise Software", ["software", "cloud", "saas", "workflow", "enterprise", "developer", "productivity"]),
+    ("Consumer Internet / Ads", ["social", "media", "advertising", "marketplace", "e-commerce", "consumer internet", "streaming", "search"]),
     ("EV / Autonomy", ["electric vehicle", " ev ", "autonomous", "autonomy", "robotaxi", "battery"]),
+    ("Space / Defense", ["space", "satellite", "defense", "missile", "aerospace", "launch"]),
+    ("Cybersecurity", ["security", "cyber", "identity", "threat", "endpoint", "firewall"]),
     ("Robotics / Industrial Automation", ["robot", "automation", "factory", "industrial software", "motion control"]),
-    ("Cloud / Enterprise Software", ["software", "cloud", "saas", "workflow", "enterprise", "developer"]),
-    ("Biotech / GLP-1 / Life Sciences", ["biotech", "therapeutic", "pharmaceutical", "drug", "obesity", "glp-1", "clinical"]),
-    ("Consumer / Internet", ["social", "media", "advertising", "marketplace", "e-commerce", "consumer internet", "streaming"]),
     ("Energy / Power", ["energy", "oil", "gas", "utility", "power", "grid", "solar", "nuclear"]),
 ]
+
+SECTOR_FALLBACKS = {
+    "Information Technology": "Technology",
+    "Financials": "Financials",
+    "Health Care": "Healthcare",
+    "Industrials": "Industrials",
+    "Energy": "Energy",
+    "Communication Services": "Communications",
+    "Consumer Discretionary": "Consumer Discretionary",
+    "Consumer Staples": "Consumer Staples",
+    "Utilities": "Utilities",
+    "Materials": "Materials",
+    "Real Estate": "Real Estate",
+}
+
+SUBINDUSTRY_FALLBACKS = {
+    "Technology Hardware, Storage & Peripherals": "Hardware / Devices",
+    "Systems Software": "Software",
+    "Application Software": "Software",
+    "Semiconductors": "Semis / Compute",
+    "Semiconductor Materials & Equipment": "Semis / Compute",
+    "Internet Services & Infrastructure": "Internet Infrastructure",
+    "Interactive Media & Services": "Consumer Internet / Ads",
+    "Integrated Telecommunication Services": "Telecom",
+    "Health Care Equipment": "Medical Devices",
+    "Health Care Supplies": "Medical Devices",
+    "Health Care Distributors": "Healthcare Distribution",
+    "Managed Health Care": "Insurance / Managed Care",
+    "Pharmaceuticals": "Biotech / Pharma",
+    "Biotechnology": "Biotech / Pharma",
+    "Life Sciences Tools & Services": "Life Sciences Tools",
+    "Diversified Banks": "Bank",
+    "Regional Banks": "Bank",
+    "Investment Banking & Brokerage": "Broker / Fintech",
+    "Consumer Finance": "Consumer Finance",
+    "Asset Management & Custody Banks": "Asset Management",
+    "Property & Casualty Insurance": "Insurance",
+    "Multi-line Insurance": "Insurance",
+    "Oil & Gas Exploration & Production": "Oil & Gas",
+    "Integrated Oil & Gas": "Oil & Gas",
+    "Electric Utilities": "Utilities",
+    "Aerospace & Defense": "Space / Defense",
+    "Industrial Machinery & Supplies & Components": "Industrial Machinery",
+    "Rail Transportation": "Transportation",
+    "Air Freight & Logistics": "Logistics",
+    "Hotels, Resorts & Cruise Lines": "Travel / Leisure",
+    "Restaurants": "Restaurants",
+    "Soft Drinks & Non-alcoholic Beverages": "Beverages",
+    "Packaged Foods & Meats": "Packaged Foods",
+    "Drug Retail": "Drug Retail",
+    "Automobile Manufacturers": "Autos",
+}
 
 st.markdown(
     """
@@ -50,8 +99,8 @@ st.markdown(
         color: #111111;
     }
     .block-container {
-        padding-top: 1.1rem;
-        padding-bottom: 2rem;
+        padding-top: 0.85rem;
+        padding-bottom: 1.6rem;
     }
     section[data-testid="stSidebar"] {
         background: #fafafa;
@@ -60,19 +109,36 @@ st.markdown(
     section[data-testid="stSidebar"] * {
         color: #111111 !important;
     }
-    section[data-testid="stSidebar"] [data-baseweb="slider"] span,
-    section[data-testid="stSidebar"] [data-baseweb="slider"] div {
-        color: #111111 !important;
+    section[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] {
+        background: #111111 !important;
+        border-color: #111111 !important;
+    }
+    section[data-testid="stSidebar"] [data-baseweb="slider"] > div > div > div {
+        background: #d8d8d8 !important;
+    }
+    div[data-testid="stButton"] button {
+        border-radius: 999px;
+        border: 1px solid #111111;
+        background: #111111;
+        color: #ffffff !important;
+        font-weight: 600;
+        box-shadow: none;
+        min-height: 2.8rem;
+    }
+    div[data-testid="stButton"] button:hover {
+        background: #222222;
+        border-color: #222222;
+        color: #ffffff !important;
     }
     .hero {
         background: #ffffff;
         border: 1px solid #dedede;
-        border-radius: 20px;
-        padding: 24px 26px 20px 26px;
-        margin-bottom: 18px;
+        border-radius: 18px;
+        padding: 18px 22px 16px 22px;
+        margin-bottom: 14px;
     }
     .hero-title {
-        font-size: 2.05rem;
+        font-size: 1.9rem;
         font-weight: 700;
         color: #111111;
         letter-spacing: -0.04em;
@@ -80,76 +146,54 @@ st.markdown(
     }
     .hero-subtitle {
         color: #5f5f5f;
-        font-size: 0.95rem;
-        margin-top: 8px;
+        font-size: 0.92rem;
+        margin-top: 6px;
     }
     .metric-wrap {
         background: #ffffff;
         border: 1px solid #dedede;
-        border-radius: 18px;
-        padding: 18px 18px 14px 18px;
-        min-height: 108px;
+        border-radius: 16px;
+        padding: 14px 16px 12px 16px;
+        min-height: 96px;
     }
     .metric-label {
         color: #6a6a6a;
-        font-size: 0.82rem;
-        margin-bottom: 8px;
+        font-size: 0.8rem;
+        margin-bottom: 6px;
     }
     .metric-num {
         color: #111111;
-        font-size: 1.85rem;
+        font-size: 1.65rem;
         font-weight: 700;
         line-height: 1.05;
         letter-spacing: -0.04em;
     }
     .metric-sub {
         color: #6a6a6a;
-        font-size: 0.84rem;
-        margin-top: 6px;
+        font-size: 0.82rem;
+        margin-top: 5px;
     }
-    .panel {
-        background: #ffffff;
-        border: 1px solid #dedede;
-        border-radius: 20px;
-        padding: 18px 18px 14px 18px;
-        margin-top: 12px;
-    }
-    .panel h3 {
-        margin-top: 0;
-        margin-bottom: 6px;
-        font-size: 1.05rem;
-        letter-spacing: -0.03em;
-        color: #111111;
-    }
-    .panel p, .panel li {
-        color: #666666;
-        font-size: 0.9rem;
-    }
-    .legend {
+    .panel, .legend {
         background: #ffffff;
         border: 1px solid #dedede;
         border-radius: 16px;
         padding: 14px 16px;
-        margin-top: 12px;
+        margin-top: 10px;
     }
-    .legend strong {
+    .panel h3, .legend h3 {
+        margin-top: 0;
+        margin-bottom: 6px;
+        font-size: 1.0rem;
+        letter-spacing: -0.03em;
         color: #111111;
     }
-    div[data-testid="stButton"] button {
-        border-radius: 999px;
-        border: 1px solid #111111;
-        background: #111111;
-        color: #ffffff;
-        font-weight: 600;
-        box-shadow: none;
-    }
-    div[data-testid="stButton"] button:hover {
-        background: #222222;
-        border-color: #222222;
-        color: #ffffff;
+    .panel p, .legend p, .legend li {
+        color: #666666;
+        font-size: 0.88rem;
+        margin: 0;
     }
     [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-        border-radius: 18px;
+        border-radius: 16px;
         overflow: hidden;
         border: 1px solid #dedede;
     }
@@ -157,7 +201,13 @@ st.markdown(
         color: #777777;
         font-size: 0.77rem;
         text-align: center;
-        margin-top: 10px;
+        margin-top: 8px;
+    }
+    .refresh-note {
+        color: #666666;
+        font-size: 0.80rem;
+        margin-top: 0.35rem;
+        margin-bottom: 0.15rem;
     }
 </style>
 """,
@@ -183,23 +233,11 @@ def classify_theme(company: str, sector: str, sub_industry: str, summary: str) -
     for label, keywords in THEME_RULES:
         if any(keyword in text for keyword in keywords):
             return label
-
-    sector_text = f"{sector} {sub_industry}".lower()
-    if "financial" in sector_text:
-        return "Financials"
-    if "health" in sector_text:
-        return "Healthcare"
-    if "industrial" in sector_text:
-        return "Industrials"
-    if "energy" in sector_text:
-        return "Energy"
-    if "communication" in sector_text:
-        return "Media / Communications"
-    if "consumer" in sector_text:
-        return "Consumer"
-    if "information technology" in sector_text:
-        return "General Tech"
-    return "General"
+    if sub_industry in SUBINDUSTRY_FALLBACKS:
+        return SUBINDUSTRY_FALLBACKS[sub_industry]
+    if sector in SECTOR_FALLBACKS:
+        return SECTOR_FALLBACKS[sector]
+    return sub_industry or sector or "Unclassified"
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -207,16 +245,25 @@ def build_base_rows(df_market, meta, profiles):
     rows = []
     for _, row in df_market.iterrows():
         ticker = row["ticker"]
-        company = meta.loc[ticker, "Security"] if ticker in meta.index else ticker
+        profile = profiles.get(ticker) or {}
+
         sector = meta.loc[ticker, "GICS Sector"] if ticker in meta.index else ""
         sub_industry = meta.loc[ticker, "GICS Sub-Industry"] if ticker in meta.index and "GICS Sub-Industry" in meta.columns else ""
-        profile = profiles.get(ticker) or {}
+
+        company_meta = meta.loc[ticker, "Security"] if ticker in meta.index and "Security" in meta.columns else ""
+        company_profile = profile.get("company_name", "")
+        company = company_meta if company_meta and company_meta != ticker else company_profile
+        if not company:
+            company = ticker
+
         summary = profile.get("summary", "")
         market_cap = profile.get("market_cap")
 
         rows.append(
             {
-                "Ticker": ticker,
+                "Bucket": "",
+                "Ticker": f"https://finance.yahoo.com/quote/{ticker}",
+                "Ticker Symbol": ticker,
                 "Company": company,
                 "Theme": classify_theme(company, sector, sub_industry, summary),
                 "Business Summary": summary,
@@ -265,7 +312,7 @@ def build_display_df(
     working = base_df.copy()
 
     if exclude_current:
-        working = working[~working["Ticker"].isin(CURRENT_CASCADE_MARKETS)]
+        working = working[~working["Ticker Symbol"].isin(CURRENT_CASCADE_MARKETS)]
 
     if selected_themes and "All" not in selected_themes:
         working = working[working["Theme"].isin(selected_themes)]
@@ -282,7 +329,7 @@ def build_display_df(
             ((working["Auto Score"] < min_auto_score) & (working["Auto Score"] >= max(0, min_auto_score - score_buffer)))
         )
     ].copy()
-    near_cutoff = near_cutoff[~near_cutoff["Ticker"].isin(qualified["Ticker"])]
+    near_cutoff = near_cutoff[~near_cutoff["Ticker Symbol"].isin(qualified["Ticker Symbol"])]
     near_cutoff = near_cutoff.sort_values(["Today Vol ($M)", "Auto Score"], ascending=False).head(near_cutoff_count)
     near_cutoff["Bucket"] = "Near Cutoff"
 
@@ -294,7 +341,7 @@ def build_display_df(
     full_scores, recs, reasons = [], [], []
 
     for _, row in df.iterrows():
-        ticker = row["Ticker"]
+        ticker = row["Ticker Symbol"]
         manual = scores_db.get(ticker, {})
 
         hl_gap = manual.get("not_hl")
@@ -335,7 +382,7 @@ def build_display_df(
         "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
         "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
         "5D vs 20D %", "Today vs 5D %", "Auto Score",
-        "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary",
+        "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary", "Ticker Symbol",
     ]
     df = df[order_cols]
 
@@ -347,13 +394,13 @@ def build_display_df(
 
 with st.sidebar:
     st.markdown("### Controls")
-
-    if st.button("Refresh Market Data", use_container_width=True):
+    if st.button("Refresh market data", use_container_width=True, help="Pull a fresh Yahoo Finance snapshot. Usually takes 1 to 2 minutes."):
         load_market_data.clear()
         build_base_rows.clear()
         st.session_state.data = None
         st.session_state.last_refresh = datetime.now().strftime("%Y-%m-%d %H:%M")
         st.rerun()
+    st.markdown("<div class='refresh-note'>Pulls a fresh market snapshot. Cached for 1 hour.</div>", unsafe_allow_html=True)
 
     st.divider()
     st.markdown("### Screen")
@@ -365,12 +412,12 @@ with st.sidebar:
     exclude_current = st.toggle("Exclude live Cascade markets", value=True)
 
     st.divider()
-    st.markdown("### Ranking Weights")
+    st.markdown("### Ranking weights")
     hl_gap_weight = st.slider("HL Gap weight", 0.0, 4.0, 1.5, step=0.5)
     momentum_weight = st.slider("Momentum weight", 0.0, 4.0, 1.5, step=0.5)
 
     st.divider()
-    st.markdown("### Recommendation Bands")
+    st.markdown("### Recommendation bands")
     list_now_min = st.slider("List Now minimum", 4.0, 12.0, 7.0, step=0.5)
     monitor_min = st.slider("Monitor minimum", 2.0, 10.0, 5.0, step=0.5)
     watch_min = st.slider("Watch minimum", 0.0, 8.0, 3.5, step=0.5)
@@ -381,7 +428,7 @@ with st.sidebar:
         watch_min = monitor_min
 
     st.divider()
-    st.markdown("### Recommendation Filter")
+    st.markdown("### Recommendation filter")
     show_rec = st.multiselect(
         "Show recommendations",
         ["🟢 LIST NOW", "🟡 MONITOR", "⚪ WATCH", "⚫ SKIP"],
@@ -449,13 +496,13 @@ with m2:
 with m3:
     st.markdown(f'<div class="metric-wrap"><div class="metric-label">List now</div><div class="metric-num">{list_now}</div><div class="metric-sub">top current recommendations</div></div>', unsafe_allow_html=True)
 with m4:
-    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Themes in view</div><div class="metric-num">{unique_themes}</div><div class="metric-sub">derived from company descriptions</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Themes in view</div><div class="metric-num">{unique_themes}</div><div class="metric-sub">more specific industry tags</div></div>', unsafe_allow_html=True)
 
 st.markdown(
     """
 <div class="panel">
   <h3>How the volume signal works</h3>
-  <p><strong>5D vs 20D %</strong> measures whether volume has been building over the last week relative to the last month. <strong>Today vs 5D %</strong> measures whether today is still heating up versus recent volume. Auto Score combines liquidity, build, and heat. Manual inputs then layer on top.</p>
+  <p><strong>5D vs 20D %</strong> measures whether volume has been building over the last week relative to the last month. <strong>Today vs 5D %</strong> measures whether today is hotter or cooler than that recent baseline. Auto Score combines liquidity, build, and heat. Manual inputs then layer on top.</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -464,11 +511,11 @@ st.markdown(
 st.markdown(
     """
 <div class="legend">
-  <strong>Legend</strong><br>
-  <strong>HL Gap</strong> = whether the name is not on Hyperliquid yet (0 or 1).<br>
+  <h3>Legend</h3>
+  <p><strong>HL Gap</strong> = whether the name is not on Hyperliquid yet (0 or 1).<br>
   <strong>Momentum</strong> = your manual 1 to 5 read on non-volume momentum.<br>
   <strong>Auto Score</strong> = liquidity + build + heat score from market data.<br>
-  <strong>Full R/R</strong> = Auto Score + manual bonuses.
+  <strong>Full R/R</strong> = Auto Score + manual bonuses.</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -500,24 +547,25 @@ if df_display.empty:
 else:
     col_config = {
         "Bucket": st.column_config.TextColumn("Bucket", width="small", disabled=True),
-        "Ticker": st.column_config.TextColumn("Ticker", width="small", disabled=True),
+        "Ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"https://finance\.yahoo\.com/quote/(.*)"),
         "Company": st.column_config.TextColumn("Company", width="medium", disabled=True),
-        "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived automatically from company description + sector metadata."),
+        "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived automatically from company description plus sector and sub-industry metadata."),
         "Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.2f", disabled=True),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
         "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
         "5D Avg Vol ($M)": st.column_config.NumberColumn("5D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
         "20D Avg Vol ($M)": st.column_config.NumberColumn("20D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 20 trading days."),
-        "5D vs 20D %": st.column_config.NumberColumn("5D vs 20D %", format="%.1f%%", disabled=True, help="Whether volume has been building over the last week versus the last month."),
-        "Today vs 5D %": st.column_config.NumberColumn("Today vs 5D %", format="%.1f%%", disabled=True, help="Whether today is hotter or cooler than the recent 5-day baseline."),
-        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True, help="Score built from liquidity, build, and heat."),
+        "5D vs 20D %": st.column_config.NumberColumn("5D vs 20D %", format="%.1f%%", disabled=True, help="How much recent weekly volume is above or below the last 20-day baseline."),
+        "Today vs 5D %": st.column_config.NumberColumn("Today vs 5D %", format="%.1f%%", disabled=True, help="How much today is above or below the recent 5-day baseline."),
+        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True, help="Liquidity plus build plus heat."),
         "HL Gap": st.column_config.NumberColumn("HL Gap", min_value=0, max_value=1, step=1, help="1 if the name is not on Hyperliquid yet, otherwise 0."),
         "Momentum": st.column_config.NumberColumn("Momentum", min_value=1, max_value=5, step=1, help="Your manual momentum read from 1 to 5."),
         "Full R/R": st.column_config.NumberColumn("Full R/R", format="%.1f", disabled=True, help="Auto Score plus manual bonus."),
         "Recommendation": st.column_config.TextColumn("Recommendation", width="medium", disabled=True),
         "Why": st.column_config.TextColumn("Why", width="large", disabled=True, help="Breakdown of the current score."),
         "Notes": st.column_config.TextColumn("Notes", width="large"),
-        "Business Summary": st.column_config.TextColumn("Business Summary", width="large", disabled=True, help="Company description used for theme classification."),
+        "Business Summary": st.column_config.TextColumn("Business Summary", width="large", disabled=True),
+        "Ticker Symbol": st.column_config.TextColumn("Ticker Symbol", disabled=True),
     }
 
     edited_df = st.data_editor(
@@ -564,7 +612,7 @@ else:
 
     save_col, status_col = st.columns([1, 4])
     with save_col:
-        save_clicked = st.button("Save Scores", use_container_width=True)
+        save_clicked = st.button("Save scores", use_container_width=True)
     with status_col:
         if st.session_state.save_status:
             st.success(st.session_state.save_status)
@@ -572,7 +620,7 @@ else:
     if save_clicked:
         new_scores = {}
         for _, row in edited_df.iterrows():
-            ticker = row["Ticker"]
+            ticker = row["Ticker Symbol"]
             entry = {}
 
             if pd.notna(row.get("HL Gap")):
