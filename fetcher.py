@@ -40,7 +40,7 @@ def get_sp500_tickers():
         ]
         meta = pd.DataFrame(
             {
-                "Security": fallback,
+                "Security": [""] * len(fallback),
                 "GICS Sector": [""] * len(fallback),
                 "GICS Sub-Industry": [""] * len(fallback),
             },
@@ -147,7 +147,6 @@ def compute_metrics(all_data: dict) -> pd.DataFrame:
                     "build_pct": round(build_pct, 2),
                     "heat_pct": round(heat_pct, 2),
                     "auto_score": round(liq_s + build_s + heat_s, 2),
-                    "current_price": round(float(local_df["Close"].iloc[-1]), 2),
                 }
             )
         except Exception:
@@ -166,7 +165,13 @@ def _clean_summary(text: str) -> str:
 def fetch_company_profiles(tickers: list) -> dict:
     profiles = {}
     for ticker in tickers:
-        profile = {"market_cap": None, "summary": "", "company_name": ""}
+        profile = {
+            "market_cap": None,
+            "summary": "",
+            "company_name": "",
+            "sector": "",
+            "industry": "",
+        }
         try:
             t = yf.Ticker(ticker)
             fi = getattr(t, "fast_info", None)
@@ -176,8 +181,11 @@ def fetch_company_profiles(tickers: list) -> dict:
             info = getattr(t, "info", {}) or {}
             if profile["market_cap"] is None:
                 profile["market_cap"] = info.get("marketCap")
+
             profile["summary"] = _clean_summary(info.get("longBusinessSummary") or info.get("description") or "")
             profile["company_name"] = info.get("longName") or info.get("shortName") or ""
+            profile["sector"] = info.get("sectorDisp") or info.get("sector") or ""
+            profile["industry"] = info.get("industryDisp") or info.get("industry") or ""
         except Exception:
             pass
 

@@ -24,12 +24,13 @@ THEME_RULES = [
     ("AI / Model Infra", ["artificial intelligence", " ai ", "machine learning", "foundation model", "model", "gpu", "accelerator", "data center", "cloud platform"]),
     ("Quantum", ["quantum", "qubit"]),
     ("Crypto / Exchange", ["crypto", "cryptocurrency", "digital asset", "exchange", "wallet", "blockchain", "stablecoin"]),
-    ("Broker / Fintech", ["broker", "brokerage", "trading platform", "payments", "consumer finance", "banking platform", "lending", "financial technology", "fintech"]),
+    ("Broker / Fintech", ["broker", "brokerage", "trading platform", "payments", "consumer finance", "fintech", "digital payments"]),
     ("Bank", ["bank", "commercial banking", "investment banking", "asset management", "consumer banking", "wealth management"]),
     ("Insurance / Managed Care", ["insurance", "managed care", "health benefits", "medical benefits"]),
     ("Healthcare Services", ["healthcare services", "care delivery", "pharmacy benefit", "medical services"]),
     ("Biotech / Pharma", ["biotech", "therapeutic", "pharmaceutical", "drug", "obesity", "glp-1", "clinical", "oncology"]),
-    ("Semis / Compute", ["semiconductor", "chip", "fab", "processor", "memory", "analog", "microcontroller"]),
+    ("Medical Devices", ["medical device", "diagnostic", "surgical", "orthopedic", "cardiovascular device"]),
+    ("Semis / Compute", ["semiconductor", "chip", "fab", "processor", "memory", "analog", "microcontroller", "graphics"]),
     ("Cloud / Enterprise Software", ["software", "cloud", "saas", "workflow", "enterprise", "developer", "productivity"]),
     ("Consumer Internet / Ads", ["social", "media", "advertising", "marketplace", "e-commerce", "consumer internet", "streaming", "search"]),
     ("EV / Autonomy", ["electric vehicle", " ev ", "autonomous", "autonomy", "robotaxi", "battery"]),
@@ -37,6 +38,9 @@ THEME_RULES = [
     ("Cybersecurity", ["security", "cyber", "identity", "threat", "endpoint", "firewall"]),
     ("Robotics / Industrial Automation", ["robot", "automation", "factory", "industrial software", "motion control"]),
     ("Energy / Power", ["energy", "oil", "gas", "utility", "power", "grid", "solar", "nuclear"]),
+    ("Oil & Gas", ["oil", "gas", "upstream", "downstream", "refining", "exploration", "production"]),
+    ("Telecom", ["telecom", "wireless", "broadband", "communications network"]),
+    ("Consumer Finance", ["consumer finance", "credit card", "payments network"]),
 ]
 
 SECTOR_FALLBACKS = {
@@ -62,6 +66,7 @@ SUBINDUSTRY_FALLBACKS = {
     "Internet Services & Infrastructure": "Internet Infrastructure",
     "Interactive Media & Services": "Consumer Internet / Ads",
     "Integrated Telecommunication Services": "Telecom",
+    "Wireless Telecommunication Services": "Telecom",
     "Health Care Equipment": "Medical Devices",
     "Health Care Supplies": "Medical Devices",
     "Health Care Distributors": "Healthcare Distribution",
@@ -228,16 +233,20 @@ def load_market_data():
     return fetcher.run_screen()
 
 
-def classify_theme(company: str, sector: str, sub_industry: str, summary: str) -> str:
-    text = f" {company} {sector} {sub_industry} {summary} ".lower()
+def classify_theme(company: str, sector: str, sub_industry: str, summary: str, profile_sector: str = "", profile_industry: str = "") -> str:
+    text = f" {company} {sector} {sub_industry} {profile_sector} {profile_industry} {summary} ".lower()
     for label, keywords in THEME_RULES:
         if any(keyword in text for keyword in keywords):
             return label
+    if profile_industry in SUBINDUSTRY_FALLBACKS:
+        return SUBINDUSTRY_FALLBACKS[profile_industry]
     if sub_industry in SUBINDUSTRY_FALLBACKS:
         return SUBINDUSTRY_FALLBACKS[sub_industry]
+    if profile_sector in SECTOR_FALLBACKS:
+        return SECTOR_FALLBACKS[profile_sector]
     if sector in SECTOR_FALLBACKS:
         return SECTOR_FALLBACKS[sector]
-    return sub_industry or sector or "Unclassified"
+    return profile_industry or sub_industry or profile_sector or sector or ""
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -247,17 +256,27 @@ def build_base_rows(df_market, meta, profiles):
         ticker = row["ticker"]
         profile = profiles.get(ticker) or {}
 
-        sector = meta.loc[ticker, "GICS Sector"] if ticker in meta.index else ""
-        sub_industry = meta.loc[ticker, "GICS Sub-Industry"] if ticker in meta.index and "GICS Sub-Industry" in meta.columns else ""
+        meta_sector = meta.loc[ticker, "GICS Sector"] if ticker in meta.index else ""
+        meta_sub_industry = meta.loc[ticker, "GICS Sub-Industry"] if ticker in meta.index and "GICS Sub-Industry" in meta.columns else ""
 
-        company_meta = meta.loc[ticker, "Security"] if ticker in meta.index and "Security" in meta.columns else ""
-        company_profile = profile.get("company_name", "")
-        company = company_meta if company_meta and company_meta != ticker else company_profile
-        if not company:
-            company = ticker
+        profile_sector = profile.get("sector", "")
+        profile_industry = profile.get("industry", "")
 
+        meta_company = meta.loc[ticker, "Security"] if ticker in meta.index and "Security" in meta.columns else ""
+        profile_company = profile.get("company_name", "")
+
+        company = profile_company or meta_company or ticker
         summary = profile.get("summary", "")
         market_cap = profile.get("market_cap")
+
+        theme = classify_theme(
+            company=company,
+            sector=meta_sector,
+            sub_industry=meta_sub_industry,
+            summary=summary,
+            profile_sector=profile_sector,
+            profile_industry=profile_industry,
+        )
 
         rows.append(
             {
@@ -265,9 +284,8 @@ def build_base_rows(df_market, meta, profiles):
                 "Ticker": f"https://finance.yahoo.com/quote/{ticker}",
                 "Ticker Symbol": ticker,
                 "Company": company,
-                "Theme": classify_theme(company, sector, sub_industry, summary),
+                "Theme": theme,
                 "Business Summary": summary,
-                "Price ($)": row["current_price"],
                 "Mkt Cap ($B)": round(market_cap / 1e9, 1) if market_cap else None,
                 "Today Vol ($M)": int(row["today_vol_m"]),
                 "5D Avg Vol ($M)": int(row["avg_5d_vol_m"]),
@@ -379,7 +397,7 @@ def build_display_df(
     df["Notes"] = notes_vals
 
     order_cols = [
-        "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
+        "Bucket", "Ticker", "Company", "Theme", "Mkt Cap ($B)",
         "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
         "5D vs 20D %", "Today vs 5D %", "Auto Score",
         "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary", "Ticker Symbol",
@@ -458,7 +476,7 @@ else:
 scores_db = db.load_scores()
 base_df = build_base_rows(df_market, meta, profiles)
 
-all_themes = sorted(base_df["Theme"].dropna().unique().tolist()) if not base_df.empty else []
+all_themes = sorted([x for x in base_df["Theme"].dropna().unique().tolist() if x]) if not base_df.empty else []
 selected_themes = st.multiselect("Filter by theme", ["All"] + all_themes, default=["All"])
 if selected_themes != ["All"] and "All" in selected_themes:
     selected_themes = [x for x in selected_themes if x != "All"]
@@ -486,7 +504,7 @@ if show_rec and not df_display.empty:
 qualifying_count = int((df_display["Bucket"] == "Qualified").sum()) if not df_display.empty else 0
 near_count = int((df_display["Bucket"] == "Near Cutoff").sum()) if not df_display.empty else 0
 list_now = int((df_display["Recommendation"] == "🟢 LIST NOW").sum()) if not df_display.empty else 0
-unique_themes = int(df_display["Theme"].nunique()) if not df_display.empty else 0
+unique_themes = int(df_display["Theme"].replace("", pd.NA).dropna().nunique()) if not df_display.empty else 0
 
 m1, m2, m3, m4 = st.columns(4)
 with m1:
@@ -549,8 +567,7 @@ else:
         "Bucket": st.column_config.TextColumn("Bucket", width="small", disabled=True),
         "Ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"https://finance\.yahoo\.com/quote/(.*)"),
         "Company": st.column_config.TextColumn("Company", width="medium", disabled=True),
-        "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived automatically from company description plus sector and sub-industry metadata."),
-        "Price ($)": st.column_config.NumberColumn("Price ($)", format="$%.2f", disabled=True),
+        "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived from company description plus sector and industry metadata."),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
         "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
         "5D Avg Vol ($M)": st.column_config.NumberColumn("5D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
@@ -576,7 +593,7 @@ else:
         num_rows="fixed",
         key="main_table",
         column_order=[
-            "Bucket", "Ticker", "Company", "Theme", "Price ($)", "Mkt Cap ($B)",
+            "Bucket", "Ticker", "Company", "Theme", "Mkt Cap ($B)",
             "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
             "5D vs 20D %", "Today vs 5D %", "Auto Score",
             "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes"
