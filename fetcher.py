@@ -3,9 +3,13 @@
 fetcher.py — S&P 500 screening via yfinance
 """
 
+import json
+import os
 import re
 import time
 import warnings
+from pathlib import Path
+
 import pandas as pd
 import yfinance as yf
 
@@ -16,6 +20,12 @@ TOP_N = 140
 CHUNK_SIZE = 100
 CHUNK_DELAY = 1.2
 PROFILE_DELAY = 0.08
+
+LOCAL_DEV = os.getenv("LOCAL_DEV") == "1"
+SNAPSHOT_DIR = Path("snapshots")
+MARKET_SNAPSHOT = SNAPSHOT_DIR / "market_metrics.csv"
+META_SNAPSHOT = SNAPSHOT_DIR / "meta.csv"
+PROFILES_SNAPSHOT = SNAPSHOT_DIR / "profiles.json"
 
 
 def get_sp500_tickers():
@@ -194,9 +204,36 @@ def fetch_company_profiles(tickers: list) -> dict:
     return profiles
 
 
-def run_screen():
+def save_snapshot(df, meta, profiles):
+    SNAPSHOT_DIR.mkdir(exist_ok=True)
+    df.to_csv(MARKET_SNAPSHOT, index=False)
+    meta.to_csv(META_SNAPSHOT)
+    with open(PROFILES_SNAPSHOT, "w") as f:
+        json.dump(profiles, f)
+
+
+def load_snapshot():
+    if not (MARKET_SNAPSHOT.exists() and META_SNAPSHOT.exists() and PROFILES_SNAPSHOT.exists()):
+        return None
+    df = pd.read_csv(MARKET_SNAPSHOT)
+    meta = pd.read_csv(META_SNAPSHOT, index_col=0)
+    with open(PROFILES_SNAPSHOT, "r") as f:
+        profiles = json.load(f)
+    return df, meta, profiles
+
+
+def run_screen(force_live=False):
+    if LOCAL_DEV and not force_live:
+        snap = load_snapshot()
+        if snap is not None:
+            return snap
+
     tickers, meta = get_sp500_tickers()
     ohlcv = fetch_ohlcv(tickers)
     df = compute_metrics(ohlcv)
     profiles = fetch_company_profiles(df["ticker"].tolist()) if not df.empty else {}
+
+    if LOCAL_DEV and not df.empty:
+        save_snapshot(df, meta, profiles)
+
     return df, meta, profiles

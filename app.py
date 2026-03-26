@@ -4,6 +4,8 @@ Cascade Equity Perp Listing Tracker
 """
 
 from datetime import datetime
+import threading
+import time
 import pandas as pd
 import streamlit as st
 
@@ -15,6 +17,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+LOCAL_DEV = fetcher.LOCAL_DEV
 
 CURRENT_CASCADE_MARKETS = {
     "TSLA", "CRCL", "HOOD", "AMD", "PLTR", "COIN", "NVDA", "GOOGL", "META", "TSM",
@@ -99,121 +103,398 @@ SUBINDUSTRY_FALLBACKS = {
 st.markdown(
     """
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    html, body, .stApp, .block-container, .stMarkdown, .stText, .stTextInput, .stSelectbox, .stMultiSelect, .stNumberInput, .stButton, .stDataFrame, .stDataEditor {
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+    }
+
+    header[data-testid="stHeader"],
+    div[data-testid="stToolbar"],
+    div[data-testid="stDecoration"],
+    div[data-testid="stSidebarHeader"],
+    button[kind="header"],
+    button[aria-label*="sidebar"],
+    button[title*="sidebar"] {
+        display: none !important;
+    }
+
+    [data-testid="stAppViewContainer"] > .main {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+    }
+
     .stApp {
-        background: #ffffff;
+        background: #f6f6f4;
         color: #111111;
     }
+
     .block-container {
-        padding-top: 0.85rem;
-        padding-bottom: 1.6rem;
+        max-width: 1600px;
+        padding-top: 0.6rem;
+        padding-bottom: 0.75rem;
+        padding-left: 0.95rem;
+        padding-right: 0.95rem;
     }
+
     section[data-testid="stSidebar"] {
-        background: #fafafa;
-        border-right: 1px solid #e6e6e6;
+        background: #fbfbfa;
+        border-right: 1px solid #e8e6e1;
+        min-width: 280px !important;
+        max-width: 280px !important;
     }
-    section[data-testid="stSidebar"] * {
+
+    section[data-testid="stSidebar"] .block-container {
+        padding-top: 0.6rem;
+        padding-bottom: 0.6rem;
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+    }
+
+    section[data-testid="stSidebar"] *,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] div {
         color: #111111 !important;
     }
+
+    /* Remove the extra category gaps — st.divider() renders as <hr> inside stMarkdown */
+    section[data-testid="stSidebar"] hr {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0 !important;
+    }
+
+    /* Collapse the element container wrapping the divider's <hr> */
+    section[data-testid="stSidebar"] [data-testid="stElementContainer"]:has(hr),
+    section[data-testid="stSidebar"] [data-testid="stMarkdown"]:has(hr),
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"]:has(hr) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stElementContainer"] {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+    }
+
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
+        font-size: 0.98rem;
+        line-height: 1.15;
+        margin-top: 0.45rem !important;
+        margin-bottom: 0.12rem !important;
+    }
+
+    /* Button */
+    div[data-testid="stButton"] button {
+        border-radius: 999px !important;
+        border: 1px solid #111111 !important;
+        background: #111111 !important;
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        font-size: 0.95rem !important;
+        box-shadow: none !important;
+        min-height: 2.75rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+    }
+
+    div[data-testid="stButton"] button *,
+    div[data-testid="stButton"] button p,
+    div[data-testid="stButton"] button span {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+    }
+
+    div[data-testid="stButton"] button:hover,
+    div[data-testid="stButton"] button:focus,
+    div[data-testid="stButton"] button:active {
+        background: #111111 !important;
+        border-color: #111111 !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+    }
+
+    div[data-testid="stButton"] button:hover *,
+    div[data-testid="stButton"] button:focus *,
+    div[data-testid="stButton"] button:active * {
+        color: #ffffff !important;
+    }
+
+    /* Sidebar slider spacing */
+    section[data-testid="stSidebar"] [data-baseweb="slider"] {
+        padding-top: 0.01rem !important;
+        padding-bottom: 0.01rem !important;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
     section[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] {
         background: #111111 !important;
         border-color: #111111 !important;
+        box-shadow: none !important;
     }
+
     section[data-testid="stSidebar"] [data-baseweb="slider"] > div > div > div {
-        background: #d8d8d8 !important;
+        background: #d7d7d4 !important;
     }
-    div[data-testid="stButton"] button {
-        border-radius: 999px;
-        border: 1px solid #111111;
-        background: #111111;
-        color: #ffffff !important;
-        font-weight: 600;
-        box-shadow: none;
-        min-height: 2.8rem;
+
+    /* Slider labels and values */
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
+        margin-bottom: 0.02rem !important;
     }
-    div[data-testid="stButton"] button:hover {
-        background: #222222;
-        border-color: #222222;
-        color: #ffffff !important;
+
+
+    /* title text slightly larger than slider values */
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+        font-size: 0.92rem !important;
+        font-weight: 500 !important;
+        line-height: 1.15 !important;
+        color: #111111 !important;
+        margin-bottom: 0 !important;
     }
+
     .hero {
-        background: #ffffff;
-        border: 1px solid #dedede;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
         border-radius: 18px;
-        padding: 18px 22px 16px 22px;
-        margin-bottom: 14px;
+        padding: 12px 15px 10px 15px;
+        margin-bottom: 8px;
     }
+
     .hero-title {
-        font-size: 1.9rem;
+        font-size: 1.7rem;
         font-weight: 700;
         color: #111111;
-        letter-spacing: -0.04em;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
         margin: 0;
     }
+
     .hero-subtitle {
-        color: #5f5f5f;
-        font-size: 0.92rem;
-        margin-top: 6px;
+        color: #66645f;
+        font-size: 0.88rem;
+        margin-top: 4px;
     }
+
     .metric-wrap {
-        background: #ffffff;
-        border: 1px solid #dedede;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
         border-radius: 16px;
-        padding: 14px 16px 12px 16px;
-        min-height: 96px;
+        padding: 10px 12px 8px 12px;
+        min-height: 74px;
     }
+
     .metric-label {
-        color: #6a6a6a;
-        font-size: 0.8rem;
-        margin-bottom: 6px;
+        color: #6b6964;
+        font-size: 0.75rem;
+        margin-bottom: 3px;
     }
+
     .metric-num {
         color: #111111;
-        font-size: 1.65rem;
+        font-size: 1.32rem;
         font-weight: 700;
-        line-height: 1.05;
+        line-height: 1.02;
         letter-spacing: -0.04em;
     }
+
     .metric-sub {
-        color: #6a6a6a;
-        font-size: 0.82rem;
-        margin-top: 5px;
+        color: #6b6964;
+        font-size: 0.77rem;
+        margin-top: 2px;
     }
+
     .panel, .legend {
-        background: #ffffff;
-        border: 1px solid #dedede;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
         border-radius: 16px;
-        padding: 14px 16px;
-        margin-top: 10px;
+        padding: 10px 12px;
+        margin-top: 8px;
     }
+
     .panel h3, .legend h3 {
         margin-top: 0;
-        margin-bottom: 6px;
-        font-size: 1.0rem;
-        letter-spacing: -0.03em;
+        margin-bottom: 4px;
+        font-size: 0.95rem;
+        font-weight: 600;
         color: #111111;
     }
+
     .panel p, .legend p, .legend li {
-        color: #666666;
-        font-size: 0.88rem;
+        color: #66645f;
+        font-size: 0.83rem;
+        line-height: 1.4;
         margin: 0;
     }
+
+    [data-testid="stExpander"] {
+        border: none !important;
+        background: transparent !important;
+        margin-top: 4px !important;
+    }
+
+    [data-testid="stExpander"] summary {
+        list-style: none !important;
+        cursor: pointer;
+    }
+
+    [data-testid="stExpander"] summary p {
+        color: #111111 !important;
+        font-size: 0.88rem !important;
+        font-weight: 500 !important;
+    }
+
     [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
         border-radius: 16px;
         overflow: hidden;
-        border: 1px solid #dedede;
+        border: 1px solid #e6e4de;
+        background: #f9f8f6;
     }
+
     .footer-note {
-        color: #777777;
-        font-size: 0.77rem;
+        color: #77736a;
+        font-size: 0.74rem;
         text-align: center;
-        margin-top: 8px;
+        margin-top: 6px;
     }
-    .refresh-note {
-        color: #666666;
-        font-size: 0.80rem;
-        margin-top: 0.35rem;
-        margin-bottom: 0.15rem;
+
+    .narrative-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #111111;
+        margin-top: 0.05rem;
+        margin-bottom: 0.22rem;
     }
+
+    .loading-box {
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
+        border-radius: 16px;
+        padding: 14px 16px;
+        color: #111111;
+        font-size: 0.9rem;
+    }
+
+    div[data-baseweb="select"] > div {
+        min-height: 42px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e6e4de !important;
+        background: #111111 !important;
+        box-shadow: none !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+    }
+
+    div[data-baseweb="select"] input {
+        color: #ffffff !important;
+        font-size: 0.9rem !important;
+    }
+
+    div[data-baseweb="select"] input::placeholder {
+        color: #b9b9b9 !important;
+    }
+
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] svg {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+    }
+
+    div[data-baseweb="tag"] {
+        border-radius: 999px !important;
+        background: #ff5a52 !important;
+        color: #ffffff !important;
+        border: 1px solid #ff5a52 !important;
+        padding: 2px 8px !important;
+    }
+
+    div[data-baseweb="tag"] * {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+    }
+
+    [role="listbox"] {
+        border-radius: 16px !important;
+        border: 1px solid #e6e4de !important;
+        background: #111111 !important;
+    }
+
+    [role="option"] {
+        color: #ffffff !important;
+        background: #111111 !important;
+    }
+
+    [role="option"]:hover {
+        background: #1b1b1b !important;
+    }
+
+    @media (max-width: 1440px) {
+        .block-container {
+            padding-left: 0.85rem;
+            padding-right: 0.85rem;
+        }
+        section[data-testid="stSidebar"] {
+            min-width: 255px !important;
+            max-width: 255px !important;
+        }
+        .hero-title {
+            font-size: 1.55rem;
+        }
+    }
+
+    @media (max-width: 1280px) {
+        .metric-num {
+            font-size: 1.18rem;
+        }
+        .hero-title {
+            font-size: 1.4rem;
+        }
+        section[data-testid="stSidebar"] {
+            min-width: 235px !important;
+            max-width: 235px !important;
+        }
+    }
+
+    /* Sidebar slider typography refinement */
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] span {
+        margin-bottom: 7px !important;
+    }
+
+    /* selected/current slider value (Streamlit 1.55+) */
+    section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"],
+    section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] *,
+    section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] p,
+    section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] span {
+        font-size: 1.00rem !important;
+        font-weight: 500 !important;
+        line-height: 1.1 !important;
+        color: #111111 !important;
+    }
+
+    /* min/max tick bar values (Streamlit 1.55+) */
+    section[data-testid="stSidebar"] [data-testid="stSliderTickBar"],
+    section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] *,
+    section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] p,
+    section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] span {
+        font-size: 0.72rem !important;
+        font-weight: 400 !important;
+        line-height: 1.1 !important;
+        color: #111111 !important;
+    }
+
 </style>
 """,
     unsafe_allow_html=True,
@@ -229,8 +510,51 @@ for key, default in {
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
-def load_market_data():
-    return fetcher.run_screen()
+def load_market_data(force_live=False):
+    return fetcher.run_screen(force_live=force_live)
+
+
+def load_market_data_with_animation(force_live=False, local_mode=False):
+    result = {}
+    error = {}
+
+    def worker():
+        try:
+            result["data"] = load_market_data(force_live=force_live)
+        except Exception as exc:
+            error["exc"] = exc
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+
+    placeholder = st.empty()
+    messages = [
+        "Loading data. Please wait.",
+        "Loading data. Please wait..",
+        "Loading data. Please wait...",
+    ]
+    if local_mode and not force_live:
+        messages = [
+            "Loading data. Please wait.",
+            "Loading data. Please wait..",
+            "Loading data. Please wait...",
+        ]
+
+    i = 0
+    while thread.is_alive():
+        placeholder.markdown(
+            f"<div class='loading-box'>{messages[i % len(messages)]}</div>",
+            unsafe_allow_html=True,
+        )
+        time.sleep(0.4)
+        i += 1
+
+    thread.join()
+    placeholder.empty()
+
+    if "exc" in error:
+        raise error["exc"]
+    return result["data"]
 
 
 def classify_theme(company: str, sector: str, sub_industry: str, summary: str, profile_sector: str = "", profile_industry: str = "") -> str:
@@ -284,7 +608,7 @@ def build_base_rows(df_market, meta, profiles):
                 "Ticker": f"https://finance.yahoo.com/quote/{ticker}",
                 "Ticker Symbol": ticker,
                 "Company": company,
-                "Theme": theme,
+                "Narrative": theme,
                 "Business Summary": summary,
                 "Mkt Cap ($B)": round(market_cap / 1e9, 1) if market_cap else None,
                 "Today Vol ($M)": int(row["today_vol_m"]),
@@ -315,7 +639,7 @@ def build_display_df(
     min_auto_score,
     near_cutoff_count,
     exclude_current,
-    selected_themes,
+    selected_narratives,
     vol_buffer,
     score_buffer,
     hl_gap_weight,
@@ -332,8 +656,8 @@ def build_display_df(
     if exclude_current:
         working = working[~working["Ticker Symbol"].isin(CURRENT_CASCADE_MARKETS)]
 
-    if selected_themes and "All" not in selected_themes:
-        working = working[working["Theme"].isin(selected_themes)]
+    if selected_narratives and "All" not in selected_narratives:
+        working = working[working["Narrative"].isin(selected_narratives)]
 
     qualified = working[
         (working["Today Vol ($M)"] >= min_vol) &
@@ -397,7 +721,7 @@ def build_display_df(
     df["Notes"] = notes_vals
 
     order_cols = [
-        "Bucket", "Ticker", "Company", "Theme", "Mkt Cap ($B)",
+        "Bucket", "Ticker", "Company", "Narrative", "Mkt Cap ($B)",
         "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
         "5D vs 20D %", "Today vs 5D %", "Auto Score",
         "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary", "Ticker Symbol",
@@ -412,13 +736,13 @@ def build_display_df(
 
 with st.sidebar:
     st.markdown("### Controls")
-    if st.button("Refresh market data", use_container_width=True, help="Pull a fresh Yahoo Finance snapshot. Usually takes 1 to 2 minutes."):
+    if st.button("Refresh Data", width="stretch", help="Pull a fresh Yahoo Finance snapshot."):
         load_market_data.clear()
         build_base_rows.clear()
         st.session_state.data = None
         st.session_state.last_refresh = datetime.now().strftime("%Y-%m-%d %H:%M")
+        st.session_state.data = load_market_data_with_animation(force_live=True, local_mode=False)
         st.rerun()
-    st.markdown("<div class='refresh-note'>Pulls a fresh market snapshot. Cached for 1 hour.</div>", unsafe_allow_html=True)
 
     st.divider()
     st.markdown("### Screen")
@@ -451,6 +775,8 @@ with st.sidebar:
         "Show recommendations",
         ["🟢 LIST NOW", "🟡 MONITOR", "⚪ WATCH", "⚫ SKIP"],
         default=["🟢 LIST NOW", "🟡 MONITOR", "⚪ WATCH", "⚫ SKIP"],
+        label_visibility="collapsed",
+        placeholder="Filter recommendations",
     )
 
 refresh_ts = st.session_state.last_refresh or "Not yet loaded"
@@ -465,8 +791,7 @@ st.markdown(
 )
 
 if st.session_state.data is None:
-    with st.spinner("Screening S&P 500 via Yahoo Finance. This usually takes around 2 minutes on a cold refresh."):
-        df_market, meta, profiles = load_market_data()
+    df_market, meta, profiles = load_market_data_with_animation(force_live=False, local_mode=LOCAL_DEV)
     st.session_state.data = (df_market, meta, profiles)
     if st.session_state.last_refresh is None:
         st.session_state.last_refresh = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -476,10 +801,19 @@ else:
 scores_db = db.load_scores()
 base_df = build_base_rows(df_market, meta, profiles)
 
-all_themes = sorted([x for x in base_df["Theme"].dropna().unique().tolist() if x]) if not base_df.empty else []
-selected_themes = st.multiselect("Filter by theme", ["All"] + all_themes, default=["All"])
-if selected_themes != ["All"] and "All" in selected_themes:
-    selected_themes = [x for x in selected_themes if x != "All"]
+all_narratives = sorted([x for x in base_df["Narrative"].dropna().unique().tolist() if x]) if not base_df.empty else []
+
+st.markdown("<div class='narrative-label'>Narrative filter</div>", unsafe_allow_html=True)
+selected_narratives = st.multiselect(
+    "Narrative filter",
+    ["All"] + all_narratives,
+    default=["All"],
+    label_visibility="collapsed",
+    placeholder="Enter a narrative here...",
+)
+
+if selected_narratives != ["All"] and "All" in selected_narratives:
+    selected_narratives = [x for x in selected_narratives if x != "All"]
 
 df_display = build_display_df(
     base_df=base_df,
@@ -488,7 +822,7 @@ df_display = build_display_df(
     min_auto_score=min_auto_score,
     near_cutoff_count=near_cutoff_count,
     exclude_current=exclude_current,
-    selected_themes=selected_themes or ["All"],
+    selected_narratives=selected_narratives or ["All"],
     vol_buffer=vol_buffer,
     score_buffer=score_buffer,
     hl_gap_weight=hl_gap_weight,
@@ -504,7 +838,7 @@ if show_rec and not df_display.empty:
 qualifying_count = int((df_display["Bucket"] == "Qualified").sum()) if not df_display.empty else 0
 near_count = int((df_display["Bucket"] == "Near Cutoff").sum()) if not df_display.empty else 0
 list_now = int((df_display["Recommendation"] == "🟢 LIST NOW").sum()) if not df_display.empty else 0
-unique_themes = int(df_display["Theme"].replace("", pd.NA).dropna().nunique()) if not df_display.empty else 0
+unique_narratives = int(df_display["Narrative"].replace("", pd.NA).dropna().nunique()) if not df_display.empty else 0
 
 m1, m2, m3, m4 = st.columns(4)
 with m1:
@@ -514,7 +848,7 @@ with m2:
 with m3:
     st.markdown(f'<div class="metric-wrap"><div class="metric-label">List now</div><div class="metric-num">{list_now}</div><div class="metric-sub">top current recommendations</div></div>', unsafe_allow_html=True)
 with m4:
-    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Themes in view</div><div class="metric-num">{unique_themes}</div><div class="metric-sub">more specific industry tags</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="metric-wrap"><div class="metric-label">Narratives in view</div><div class="metric-num">{unique_narratives}</div><div class="metric-sub">industry tags in current results</div></div>', unsafe_allow_html=True)
 
 st.markdown(
     """
@@ -567,7 +901,7 @@ else:
         "Bucket": st.column_config.TextColumn("Bucket", width="small", disabled=True),
         "Ticker": st.column_config.LinkColumn("Ticker", width="small", display_text=r"https://finance\.yahoo\.com/quote/(.*)"),
         "Company": st.column_config.TextColumn("Company", width="medium", disabled=True),
-        "Theme": st.column_config.TextColumn("Theme", width="medium", disabled=True, help="Derived from company description plus sector and industry metadata."),
+        "Narrative": st.column_config.TextColumn("Narrative", width="medium", disabled=True, help="Derived from company description plus sector and industry metadata."),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
         "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
         "5D Avg Vol ($M)": st.column_config.NumberColumn("5D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
@@ -588,12 +922,12 @@ else:
     edited_df = st.data_editor(
         df_display,
         column_config=col_config,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         num_rows="fixed",
         key="main_table",
         column_order=[
-            "Bucket", "Ticker", "Company", "Theme", "Mkt Cap ($B)",
+            "Bucket", "Ticker", "Company", "Narrative", "Mkt Cap ($B)",
             "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
             "5D vs 20D %", "Today vs 5D %", "Auto Score",
             "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes"
@@ -629,7 +963,7 @@ else:
 
     save_col, status_col = st.columns([1, 4])
     with save_col:
-        save_clicked = st.button("Save scores", use_container_width=True)
+        save_clicked = st.button("Save scores", width="stretch")
     with status_col:
         if st.session_state.save_status:
             st.success(st.session_state.save_status)
