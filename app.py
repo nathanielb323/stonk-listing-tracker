@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-LOCAL_DEV = fetcher.LOCAL_DEV
+LOCAL_DEV = getattr(fetcher, "LOCAL_DEV", False)
 
 CURRENT_CASCADE_MARKETS = {
     "TSLA", "CRCL", "HOOD", "AMD", "PLTR", "COIN", "NVDA", "GOOGL", "META", "TSM",
