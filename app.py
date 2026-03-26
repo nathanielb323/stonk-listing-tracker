@@ -124,9 +124,10 @@ st.markdown(
         margin-top: 0 !important;
     }
 
+    /* ── Core dark theme ── */
     .stApp {
-        background: #f6f6f4;
-        color: #111111;
+        background: #0d0d0d;
+        color: #e8e8e8;
     }
 
     .block-container {
@@ -137,9 +138,10 @@ st.markdown(
         padding-right: 0.95rem;
     }
 
+    /* ── Sidebar ── */
     section[data-testid="stSidebar"] {
-        background: #fbfbfa;
-        border-right: 1px solid #e8e6e1;
+        background: #111111;
+        border-right: 1px solid #232323;
         min-width: 280px !important;
         max-width: 280px !important;
     }
@@ -156,7 +158,7 @@ st.markdown(
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] span,
     section[data-testid="stSidebar"] div {
-        color: #111111 !important;
+        color: #e8e8e8 !important;
     }
 
     /* Remove the extra category gaps — st.divider() renders as <hr> inside stMarkdown */
@@ -187,22 +189,26 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-        font-size: 0.98rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #666666 !important;
         line-height: 1.15;
-        margin-top: 0.45rem !important;
+        margin-top: 0.6rem !important;
         margin-bottom: 0.12rem !important;
     }
 
-    /* Button */
+    /* ── Button ── */
     div[data-testid="stButton"] button {
         border-radius: 999px !important;
-        border: 1px solid #111111 !important;
-        background: #111111 !important;
+        border: 1px solid #333333 !important;
+        background: #1e1e1e !important;
         color: #ffffff !important;
         font-weight: 600 !important;
-        font-size: 0.95rem !important;
+        font-size: 0.88rem !important;
         box-shadow: none !important;
-        min-height: 2.75rem !important;
+        min-height: 2.5rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -219,8 +225,8 @@ st.markdown(
     div[data-testid="stButton"] button:hover,
     div[data-testid="stButton"] button:focus,
     div[data-testid="stButton"] button:active {
-        background: #111111 !important;
-        border-color: #111111 !important;
+        background: #2a2a2a !important;
+        border-color: #444444 !important;
         color: #ffffff !important;
         box-shadow: none !important;
     }
@@ -231,7 +237,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* Sidebar slider spacing */
+    /* ── Sidebar sliders ── */
     section[data-testid="stSidebar"] [data-baseweb="slider"] {
         padding-top: 0.01rem !important;
         padding-bottom: 0.01rem !important;
@@ -240,108 +246,137 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] {
-        background: #111111 !important;
-        border-color: #111111 !important;
+        background: #ffffff !important;
+        border-color: #ffffff !important;
         box-shadow: none !important;
     }
 
     section[data-testid="stSidebar"] [data-baseweb="slider"] > div > div > div {
-        background: #d7d7d4 !important;
+        background: #333333 !important;
     }
 
-    /* Slider labels and values */
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
         margin-bottom: 0.02rem !important;
     }
 
-
-    /* title text slightly larger than slider values */
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-        font-size: 0.92rem !important;
+        font-size: 0.82rem !important;
         font-weight: 500 !important;
         line-height: 1.15 !important;
-        color: #111111 !important;
+        color: #aaaaaa !important;
         margin-bottom: 0 !important;
     }
 
+    /* ── Hero / page header ── */
     .hero {
-        background: #f9f8f6;
-        border: 1px solid #e6e4de;
-        border-radius: 18px;
-        padding: 12px 15px 10px 15px;
-        margin-bottom: 8px;
+        background: transparent;
+        border: none;
+        border-bottom: 1px solid #1e1e1e;
+        border-radius: 0;
+        padding: 18px 4px 16px 4px;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+    }
+
+    .hero-left {}
+
+    .hero-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #666666;
+        margin-bottom: 4px;
     }
 
     .hero-title {
-        font-size: 1.7rem;
+        font-size: 2.1rem;
         font-weight: 700;
-        color: #111111;
-        letter-spacing: -0.045em;
-        line-height: 1.05;
+        color: #ffffff;
+        letter-spacing: -0.04em;
+        line-height: 1.0;
         margin: 0;
     }
 
-    .hero-subtitle {
-        color: #66645f;
-        font-size: 0.88rem;
-        margin-top: 4px;
+    .hero-right {
+        font-size: 0.75rem;
+        color: #555555;
+        text-align: right;
+        padding-bottom: 4px;
     }
 
+    .hero-subtitle {
+        color: #666666;
+        font-size: 0.82rem;
+        margin-top: 5px;
+    }
+
+    /* ── Metric cards ── */
     .metric-wrap {
-        background: #f9f8f6;
-        border: 1px solid #e6e4de;
-        border-radius: 16px;
-        padding: 10px 12px 8px 12px;
+        background: #111111;
+        border: 1px solid #1e1e1e;
+        border-radius: 12px;
+        padding: 12px 14px 10px 14px;
         min-height: 74px;
     }
 
     .metric-label {
-        color: #6b6964;
-        font-size: 0.75rem;
-        margin-bottom: 3px;
+        color: #555555;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        margin-bottom: 5px;
     }
 
     .metric-num {
-        color: #111111;
-        font-size: 1.32rem;
+        color: #ffffff;
+        font-size: 1.5rem;
         font-weight: 700;
-        line-height: 1.02;
+        line-height: 1.0;
         letter-spacing: -0.04em;
     }
 
     .metric-sub {
-        color: #6b6964;
-        font-size: 0.77rem;
-        margin-top: 2px;
+        color: #555555;
+        font-size: 0.72rem;
+        margin-top: 3px;
     }
 
+    /* ── Info panels ── */
     .panel, .legend {
-        background: #f9f8f6;
-        border: 1px solid #e6e4de;
-        border-radius: 16px;
-        padding: 10px 12px;
+        background: #111111;
+        border: 1px solid #1e1e1e;
+        border-radius: 12px;
+        padding: 12px 14px;
         margin-top: 8px;
     }
 
     .panel h3, .legend h3 {
         margin-top: 0;
-        margin-bottom: 4px;
-        font-size: 0.95rem;
+        margin-bottom: 5px;
+        font-size: 0.75rem;
         font-weight: 600;
-        color: #111111;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #666666;
     }
 
     .panel p, .legend p, .legend li {
-        color: #66645f;
-        font-size: 0.83rem;
-        line-height: 1.4;
+        color: #888888;
+        font-size: 0.82rem;
+        line-height: 1.5;
         margin: 0;
     }
 
+    /* ── Expander ── */
     [data-testid="stExpander"] {
-        border: none !important;
-        background: transparent !important;
-        margin-top: 4px !important;
+        border: 1px solid #1e1e1e !important;
+        background: #111111 !important;
+        border-radius: 12px !important;
+        margin-top: 8px !important;
     }
 
     [data-testid="stExpander"] summary {
@@ -350,95 +385,119 @@ st.markdown(
     }
 
     [data-testid="stExpander"] summary p {
-        color: #111111 !important;
-        font-size: 0.88rem !important;
+        color: #888888 !important;
+        font-size: 0.82rem !important;
         font-weight: 500 !important;
     }
 
-    [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-        border-radius: 16px;
-        overflow: hidden;
-        border: 1px solid #e6e4de;
-        background: #f9f8f6;
+    [data-testid="stExpander"] .stMarkdown p,
+    [data-testid="stExpander"] .stMarkdown li {
+        color: #888888 !important;
+        font-size: 0.82rem !important;
     }
 
+    /* ── Data table ── */
+    [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #1e1e1e;
+        background: #111111;
+    }
+
+    /* ── Divider ── */
+    hr {
+        border-color: #1e1e1e !important;
+    }
+
+    /* ── Footer ── */
     .footer-note {
-        color: #77736a;
-        font-size: 0.74rem;
+        color: #444444;
+        font-size: 0.72rem;
         text-align: center;
         margin-top: 6px;
     }
 
+    /* ── Narrative filter label ── */
     .narrative-label {
-        font-size: 0.9rem;
+        font-size: 0.72rem;
         font-weight: 600;
-        color: #111111;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: #666666;
         margin-top: 0.05rem;
         margin-bottom: 0.22rem;
     }
 
+    /* ── Loading box ── */
     .loading-box {
-        background: #f9f8f6;
-        border: 1px solid #e6e4de;
-        border-radius: 16px;
+        background: #111111;
+        border: 1px solid #1e1e1e;
+        border-radius: 12px;
         padding: 14px 16px;
-        color: #111111;
-        font-size: 0.9rem;
+        color: #888888;
+        font-size: 0.88rem;
     }
 
+    /* ── Dropdowns / multiselect ── */
     div[data-baseweb="select"] > div {
-        min-height: 42px !important;
-        border-radius: 16px !important;
-        border: 1px solid #e6e4de !important;
-        background: #111111 !important;
+        min-height: 40px !important;
+        border-radius: 10px !important;
+        border: 1px solid #232323 !important;
+        background: #161616 !important;
         box-shadow: none !important;
         padding-top: 2px !important;
         padding-bottom: 2px !important;
     }
 
     div[data-baseweb="select"] input {
-        color: #ffffff !important;
-        font-size: 0.9rem !important;
+        color: #cccccc !important;
+        font-size: 0.88rem !important;
     }
 
     div[data-baseweb="select"] input::placeholder {
-        color: #b9b9b9 !important;
+        color: #555555 !important;
     }
 
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] svg {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+        color: #666666 !important;
+        fill: #666666 !important;
     }
 
     div[data-baseweb="tag"] {
         border-radius: 999px !important;
-        background: #ff5a52 !important;
-        color: #ffffff !important;
-        border: 1px solid #ff5a52 !important;
+        background: #1e1e1e !important;
+        color: #cccccc !important;
+        border: 1px solid #333333 !important;
         padding: 2px 8px !important;
     }
 
     div[data-baseweb="tag"] * {
-        color: #ffffff !important;
-        fill: #ffffff !important;
+        color: #cccccc !important;
+        fill: #cccccc !important;
     }
 
     [role="listbox"] {
-        border-radius: 16px !important;
-        border: 1px solid #e6e4de !important;
-        background: #111111 !important;
+        border-radius: 10px !important;
+        border: 1px solid #232323 !important;
+        background: #161616 !important;
     }
 
     [role="option"] {
-        color: #ffffff !important;
-        background: #111111 !important;
+        color: #cccccc !important;
+        background: #161616 !important;
     }
 
     [role="option"]:hover {
-        background: #1b1b1b !important;
+        background: #1e1e1e !important;
     }
 
+    /* ── Toggle ── */
+    [data-testid="stToggle"] span[data-checked="true"] {
+        background: #ffffff !important;
+    }
+
+    /* ── Responsive ── */
     @media (max-width: 1440px) {
         .block-container {
             padding-left: 0.85rem;
@@ -449,16 +508,16 @@ st.markdown(
             max-width: 255px !important;
         }
         .hero-title {
-            font-size: 1.55rem;
+            font-size: 1.8rem;
         }
     }
 
     @media (max-width: 1280px) {
         .metric-num {
-            font-size: 1.18rem;
+            font-size: 1.3rem;
         }
         .hero-title {
-            font-size: 1.4rem;
+            font-size: 1.6rem;
         }
         section[data-testid="stSidebar"] {
             min-width: 235px !important;
@@ -466,33 +525,31 @@ st.markdown(
         }
     }
 
-    /* Sidebar slider typography refinement */
+    /* ── Sidebar slider typography ── */
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] span {
         margin-bottom: 7px !important;
     }
 
-    /* selected/current slider value (Streamlit 1.55+) */
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"],
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] *,
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] p,
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] span {
-        font-size: 1.00rem !important;
+        font-size: 0.95rem !important;
         font-weight: 500 !important;
         line-height: 1.1 !important;
-        color: #111111 !important;
+        color: #cccccc !important;
     }
 
-    /* min/max tick bar values (Streamlit 1.55+) */
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"],
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] *,
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] p,
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] span {
-        font-size: 0.72rem !important;
+        font-size: 0.68rem !important;
         font-weight: 400 !important;
         line-height: 1.1 !important;
-        color: #111111 !important;
+        color: #555555 !important;
     }
 
 </style>
@@ -783,8 +840,12 @@ refresh_ts = st.session_state.last_refresh or "Not yet loaded"
 st.markdown(
     f"""
 <div class="hero">
-  <div class="hero-title">Markets</div>
-  <div class="hero-subtitle">S&amp;P 500 screen for equity perp listing candidates. Current Cascade markets excluded by default. Last refresh: {refresh_ts}</div>
+  <div class="hero-left">
+    <div class="hero-eyebrow">Market overview</div>
+    <div class="hero-title">S&amp;P 500 listing candidates</div>
+    <div class="hero-subtitle">Equity perp screen for Cascade mainnet. Current markets excluded by default.</div>
+  </div>
+  <div class="hero-right">Refreshed {refresh_ts}</div>
 </div>
 """,
     unsafe_allow_html=True,
