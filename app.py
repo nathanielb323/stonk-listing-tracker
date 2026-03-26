@@ -124,10 +124,9 @@ st.markdown(
         margin-top: 0 !important;
     }
 
-    /* ── Core dark theme ── */
     .stApp {
-        background: #0d0d0d;
-        color: #e8e8e8;
+        background: #f6f6f4;
+        color: #111111;
     }
 
     .block-container {
@@ -138,10 +137,9 @@ st.markdown(
         padding-right: 0.95rem;
     }
 
-    /* ── Sidebar ── */
     section[data-testid="stSidebar"] {
-        background: #111111;
-        border-right: 1px solid #232323;
+        background: #fbfbfa;
+        border-right: 1px solid #e8e6e1;
         min-width: 280px !important;
         max-width: 280px !important;
     }
@@ -158,7 +156,7 @@ st.markdown(
     section[data-testid="stSidebar"] label,
     section[data-testid="stSidebar"] span,
     section[data-testid="stSidebar"] div {
-        color: #e8e8e8 !important;
+        color: #111111 !important;
     }
 
     /* Remove the extra category gaps — st.divider() renders as <hr> inside stMarkdown */
@@ -189,26 +187,22 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h3 {
-        font-size: 0.75rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #666666 !important;
+        font-size: 0.98rem;
         line-height: 1.15;
-        margin-top: 0.6rem !important;
+        margin-top: 0.45rem !important;
         margin-bottom: 0.12rem !important;
     }
 
-    /* ── Button ── */
+    /* Button */
     div[data-testid="stButton"] button {
         border-radius: 999px !important;
-        border: 1px solid #333333 !important;
-        background: #1e1e1e !important;
+        border: 1px solid #111111 !important;
+        background: #111111 !important;
         color: #ffffff !important;
         font-weight: 600 !important;
-        font-size: 0.88rem !important;
+        font-size: 0.95rem !important;
         box-shadow: none !important;
-        min-height: 2.5rem !important;
+        min-height: 2.75rem !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -225,8 +219,8 @@ st.markdown(
     div[data-testid="stButton"] button:hover,
     div[data-testid="stButton"] button:focus,
     div[data-testid="stButton"] button:active {
-        background: #2a2a2a !important;
-        border-color: #444444 !important;
+        background: #111111 !important;
+        border-color: #111111 !important;
         color: #ffffff !important;
         box-shadow: none !important;
     }
@@ -237,7 +231,7 @@ st.markdown(
         color: #ffffff !important;
     }
 
-    /* ── Sidebar sliders ── */
+    /* Sidebar slider spacing */
     section[data-testid="stSidebar"] [data-baseweb="slider"] {
         padding-top: 0.01rem !important;
         padding-bottom: 0.01rem !important;
@@ -246,137 +240,126 @@ st.markdown(
     }
 
     section[data-testid="stSidebar"] [data-baseweb="slider"] div[role="slider"] {
-        background: #ffffff !important;
-        border-color: #ffffff !important;
+        background: #111111 !important;
+        border-color: #111111 !important;
         box-shadow: none !important;
     }
 
     section[data-testid="stSidebar"] [data-baseweb="slider"] > div > div > div {
-        background: #333333 !important;
+        background: #d7d7d4 !important;
     }
 
+    /* Slider labels and values */
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] {
         margin-bottom: 0.02rem !important;
     }
 
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
-        font-size: 0.82rem !important;
+        font-size: 0.92rem !important;
         font-weight: 500 !important;
         line-height: 1.15 !important;
-        color: #aaaaaa !important;
+        color: #111111 !important;
         margin-bottom: 0 !important;
     }
 
-    /* ── Hero / page header ── */
     .hero {
-        background: transparent;
-        border: none;
-        border-bottom: 1px solid #1e1e1e;
-        border-radius: 0;
-        padding: 18px 4px 16px 4px;
-        margin-bottom: 16px;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
+        border-radius: 18px;
+        padding: 12px 15px 10px 15px;
+        margin-bottom: 8px;
         display: flex;
-        align-items: flex-end;
+        align-items: flex-start;
         justify-content: space-between;
     }
-
-    .hero-left {}
 
     .hero-eyebrow {
         font-size: 0.72rem;
         font-weight: 500;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: #666666;
-        margin-bottom: 4px;
+        color: #999896;
+        margin-bottom: 3px;
     }
 
     .hero-title {
-        font-size: 2.1rem;
+        font-size: 1.7rem;
         font-weight: 700;
-        color: #ffffff;
-        letter-spacing: -0.04em;
-        line-height: 1.0;
+        color: #111111;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
         margin: 0;
+    }
+
+    .hero-subtitle {
+        color: #66645f;
+        font-size: 0.88rem;
+        margin-top: 4px;
     }
 
     .hero-right {
         font-size: 0.75rem;
-        color: #555555;
+        color: #999896;
         text-align: right;
-        padding-bottom: 4px;
+        padding-top: 2px;
+        white-space: nowrap;
     }
 
-    .hero-subtitle {
-        color: #666666;
-        font-size: 0.82rem;
-        margin-top: 5px;
-    }
-
-    /* ── Metric cards ── */
     .metric-wrap {
-        background: #111111;
-        border: 1px solid #1e1e1e;
-        border-radius: 12px;
-        padding: 12px 14px 10px 14px;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
+        border-radius: 16px;
+        padding: 10px 12px 8px 12px;
         min-height: 74px;
     }
 
     .metric-label {
-        color: #555555;
-        font-size: 0.68rem;
-        font-weight: 600;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        margin-bottom: 5px;
+        color: #6b6964;
+        font-size: 0.75rem;
+        margin-bottom: 3px;
     }
 
     .metric-num {
-        color: #ffffff;
-        font-size: 1.5rem;
+        color: #111111;
+        font-size: 1.32rem;
         font-weight: 700;
-        line-height: 1.0;
+        line-height: 1.02;
         letter-spacing: -0.04em;
     }
 
     .metric-sub {
-        color: #555555;
-        font-size: 0.72rem;
-        margin-top: 3px;
+        color: #6b6964;
+        font-size: 0.77rem;
+        margin-top: 2px;
     }
 
-    /* ── Info panels ── */
     .panel, .legend {
-        background: #111111;
-        border: 1px solid #1e1e1e;
-        border-radius: 12px;
-        padding: 12px 14px;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
+        border-radius: 16px;
+        padding: 10px 12px;
         margin-top: 8px;
     }
 
     .panel h3, .legend h3 {
         margin-top: 0;
-        margin-bottom: 5px;
-        font-size: 0.75rem;
+        margin-bottom: 4px;
+        font-size: 0.95rem;
         font-weight: 600;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        color: #666666;
+        color: #111111;
     }
 
     .panel p, .legend p, .legend li {
-        color: #888888;
-        font-size: 0.82rem;
-        line-height: 1.5;
+        color: #66645f;
+        font-size: 0.83rem;
+        line-height: 1.4;
         margin: 0;
     }
 
-    /* ── Expander ── */
     [data-testid="stExpander"] {
-        border: 1px solid #1e1e1e !important;
-        background: #111111 !important;
-        border-radius: 12px !important;
-        margin-top: 8px !important;
+        border: none !important;
+        background: transparent !important;
+        margin-top: 4px !important;
     }
 
     [data-testid="stExpander"] summary {
@@ -385,119 +368,95 @@ st.markdown(
     }
 
     [data-testid="stExpander"] summary p {
-        color: #888888 !important;
-        font-size: 0.82rem !important;
+        color: #111111 !important;
+        font-size: 0.88rem !important;
         font-weight: 500 !important;
     }
 
-    [data-testid="stExpander"] .stMarkdown p,
-    [data-testid="stExpander"] .stMarkdown li {
-        color: #888888 !important;
-        font-size: 0.82rem !important;
-    }
-
-    /* ── Data table ── */
     [data-testid="stDataFrame"], [data-testid="stDataEditor"] {
-        border-radius: 12px;
+        border-radius: 16px;
         overflow: hidden;
-        border: 1px solid #1e1e1e;
-        background: #111111;
+        border: 1px solid #e6e4de;
+        background: #f9f8f6;
     }
 
-    /* ── Divider ── */
-    hr {
-        border-color: #1e1e1e !important;
-    }
-
-    /* ── Footer ── */
     .footer-note {
-        color: #444444;
-        font-size: 0.72rem;
+        color: #77736a;
+        font-size: 0.74rem;
         text-align: center;
         margin-top: 6px;
     }
 
-    /* ── Narrative filter label ── */
     .narrative-label {
-        font-size: 0.72rem;
+        font-size: 0.9rem;
         font-weight: 600;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        color: #666666;
+        color: #111111;
         margin-top: 0.05rem;
         margin-bottom: 0.22rem;
     }
 
-    /* ── Loading box ── */
     .loading-box {
-        background: #111111;
-        border: 1px solid #1e1e1e;
-        border-radius: 12px;
+        background: #f9f8f6;
+        border: 1px solid #e6e4de;
+        border-radius: 16px;
         padding: 14px 16px;
-        color: #888888;
-        font-size: 0.88rem;
+        color: #111111;
+        font-size: 0.9rem;
     }
 
-    /* ── Dropdowns / multiselect ── */
     div[data-baseweb="select"] > div {
-        min-height: 40px !important;
-        border-radius: 10px !important;
-        border: 1px solid #232323 !important;
-        background: #161616 !important;
+        min-height: 42px !important;
+        border-radius: 16px !important;
+        border: 1px solid #e6e4de !important;
+        background: #111111 !important;
         box-shadow: none !important;
         padding-top: 2px !important;
         padding-bottom: 2px !important;
     }
 
     div[data-baseweb="select"] input {
-        color: #cccccc !important;
-        font-size: 0.88rem !important;
+        color: #ffffff !important;
+        font-size: 0.9rem !important;
     }
 
     div[data-baseweb="select"] input::placeholder {
-        color: #555555 !important;
+        color: #b9b9b9 !important;
     }
 
     div[data-baseweb="select"] span,
     div[data-baseweb="select"] svg {
-        color: #666666 !important;
-        fill: #666666 !important;
+        color: #ffffff !important;
+        fill: #ffffff !important;
     }
 
     div[data-baseweb="tag"] {
         border-radius: 999px !important;
-        background: #1e1e1e !important;
-        color: #cccccc !important;
-        border: 1px solid #333333 !important;
+        background: #ff5a52 !important;
+        color: #ffffff !important;
+        border: 1px solid #ff5a52 !important;
         padding: 2px 8px !important;
     }
 
     div[data-baseweb="tag"] * {
-        color: #cccccc !important;
-        fill: #cccccc !important;
+        color: #ffffff !important;
+        fill: #ffffff !important;
     }
 
     [role="listbox"] {
-        border-radius: 10px !important;
-        border: 1px solid #232323 !important;
-        background: #161616 !important;
+        border-radius: 16px !important;
+        border: 1px solid #e6e4de !important;
+        background: #111111 !important;
     }
 
     [role="option"] {
-        color: #cccccc !important;
-        background: #161616 !important;
+        color: #ffffff !important;
+        background: #111111 !important;
     }
 
     [role="option"]:hover {
-        background: #1e1e1e !important;
+        background: #1b1b1b !important;
     }
 
-    /* ── Toggle ── */
-    [data-testid="stToggle"] span[data-checked="true"] {
-        background: #ffffff !important;
-    }
-
-    /* ── Responsive ── */
     @media (max-width: 1440px) {
         .block-container {
             padding-left: 0.85rem;
@@ -508,16 +467,16 @@ st.markdown(
             max-width: 255px !important;
         }
         .hero-title {
-            font-size: 1.8rem;
+            font-size: 1.55rem;
         }
     }
 
     @media (max-width: 1280px) {
         .metric-num {
-            font-size: 1.3rem;
+            font-size: 1.18rem;
         }
         .hero-title {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
         }
         section[data-testid="stSidebar"] {
             min-width: 235px !important;
@@ -525,31 +484,33 @@ st.markdown(
         }
     }
 
-    /* ── Sidebar slider typography ── */
+    /* Sidebar slider typography refinement */
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
     section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] span {
         margin-bottom: 7px !important;
     }
 
+    /* selected/current slider value (Streamlit 1.55+) */
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"],
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] *,
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] p,
     section[data-testid="stSidebar"] [data-testid="stSliderThumbValue"] span {
-        font-size: 0.95rem !important;
+        font-size: 1.00rem !important;
         font-weight: 500 !important;
         line-height: 1.1 !important;
-        color: #cccccc !important;
+        color: #111111 !important;
     }
 
+    /* min/max tick bar values (Streamlit 1.55+) */
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"],
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] *,
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] p,
     section[data-testid="stSidebar"] [data-testid="stSliderTickBar"] span {
-        font-size: 0.68rem !important;
+        font-size: 0.72rem !important;
         font-weight: 400 !important;
         line-height: 1.1 !important;
-        color: #555555 !important;
+        color: #111111 !important;
     }
 
 </style>
@@ -668,11 +629,12 @@ def build_base_rows(df_market, meta, profiles):
                 "Narrative": theme,
                 "Business Summary": summary,
                 "Mkt Cap ($B)": round(market_cap / 1e9, 1) if market_cap else None,
-                "Today Vol ($M)": int(row["today_vol_m"]),
-                "5D Avg Vol ($M)": int(row["avg_5d_vol_m"]),
-                "20D Avg Vol ($M)": int(row["avg_20d_vol_m"]),
-                "5D vs 20D %": row["build_pct"],
-                "Today vs 5D %": row["heat_pct"],
+                "1D Vol ($M)": int(row["today_vol_m"]),
+                "5D Avg ($M)": int(row["avg_5d_vol_m"]),
+                "20D Avg ($M)": int(row["avg_20d_vol_m"]),
+                "vs 20D Avg": row["build_pct"],
+                "vs 5D Avg": row["heat_pct"],
+                "Vol Streak": int(row.get("vol_streak", 0)),
                 "Auto Score": row["auto_score"],
             }
         )
@@ -717,19 +679,19 @@ def build_display_df(
         working = working[working["Narrative"].isin(selected_narratives)]
 
     qualified = working[
-        (working["Today Vol ($M)"] >= min_vol) &
+        (working["1D Vol ($M)"] >= min_vol) &
         (working["Auto Score"] >= min_auto_score)
     ].copy()
     qualified["Bucket"] = "Qualified"
 
     near_cutoff = working[
         (
-            ((working["Today Vol ($M)"] < min_vol) & (working["Today Vol ($M)"] >= max(0, min_vol - vol_buffer))) |
+            ((working["1D Vol ($M)"] < min_vol) & (working["1D Vol ($M)"] >= max(0, min_vol - vol_buffer))) |
             ((working["Auto Score"] < min_auto_score) & (working["Auto Score"] >= max(0, min_auto_score - score_buffer)))
         )
     ].copy()
     near_cutoff = near_cutoff[~near_cutoff["Ticker Symbol"].isin(qualified["Ticker Symbol"])]
-    near_cutoff = near_cutoff.sort_values(["Today Vol ($M)", "Auto Score"], ascending=False).head(near_cutoff_count)
+    near_cutoff = near_cutoff.sort_values(["1D Vol ($M)", "Auto Score"], ascending=False).head(near_cutoff_count)
     near_cutoff["Bucket"] = "Near Cutoff"
 
     df = pd.concat([qualified, near_cutoff], ignore_index=True)
@@ -779,15 +741,15 @@ def build_display_df(
 
     order_cols = [
         "Bucket", "Ticker", "Company", "Narrative", "Mkt Cap ($B)",
-        "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
-        "5D vs 20D %", "Today vs 5D %", "Auto Score",
+        "1D Vol ($M)", "5D Avg ($M)", "20D Avg ($M)",
+        "vs 20D Avg", "vs 5D Avg", "Vol Streak", "Auto Score",
         "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes", "Business Summary", "Ticker Symbol",
     ]
     df = df[order_cols]
 
     bucket_order = pd.Categorical(df["Bucket"], categories=["Qualified", "Near Cutoff"], ordered=True)
     df = df.assign(_bucket_order=bucket_order)
-    df = df.sort_values(["_bucket_order", "Full R/R", "Today Vol ($M)"], ascending=[True, False, False]).drop(columns=["_bucket_order"])
+    df = df.sort_values(["_bucket_order", "Full R/R", "1D Vol ($M)"], ascending=[True, False, False]).drop(columns=["_bucket_order"])
     return df.reset_index(drop=True)
 
 
@@ -915,7 +877,7 @@ st.markdown(
     """
 <div class="panel">
   <h3>How the volume signal works</h3>
-  <p><strong>5D vs 20D %</strong> measures whether volume has been building over the last week relative to the last month. <strong>Today vs 5D %</strong> measures whether today is hotter or cooler than that recent baseline. Auto Score combines liquidity, build, and heat. Manual inputs then layer on top.</p>
+  <p><strong>1D Growth</strong> is today's volume vs the 5-day average — how hot is right now. <strong>5D Growth</strong> is the 5-day average vs the 20-day average — whether volume has been building over the past week. <strong>Vol Streak</strong> counts how many consecutive days volume has been above its prior 5-day average. Auto Score combines liquidity, build momentum, and today's heat.</p>
 </div>
 """,
     unsafe_allow_html=True,
@@ -937,11 +899,12 @@ st.markdown(
 with st.expander("Definitions and formula details", expanded=False):
     st.markdown(
         f"""
-- **Today Vol ($M)**: today's dollar volume in millions
-- **5D Avg Vol ($M)**: average daily dollar volume over the last 5 trading days
-- **20D Avg Vol ($M)**: average daily dollar volume over the last 20 trading days
-- **5D vs 20D %**: `((5D Avg - 20D Avg) / 20D Avg) × 100`
-- **Today vs 5D %**: `((Today Vol - 5D Avg) / 5D Avg) × 100`
+- **1D Vol ($M)**: today's dollar volume in millions
+- **5D Avg ($M)**: average daily dollar volume over the last 5 trading days
+- **20D Avg ($M)**: average daily dollar volume over the last 20 trading days
+- **5D Growth**: `((5D Avg - 20D Avg) / 20D Avg) × 100` — is weekly volume trending above the monthly baseline?
+- **1D Growth**: `((1D Vol - 5D Avg) / 5D Avg) × 100` — is today hotter or cooler than the recent 5-day baseline?
+- **Vol Streak**: consecutive days where daily volume exceeded the prior 5-day average
 
 **Manual bonus**
 - `HL Gap × {hl_gap_weight:.1f}`
@@ -964,12 +927,13 @@ else:
         "Company": st.column_config.TextColumn("Company", width="medium", disabled=True),
         "Narrative": st.column_config.TextColumn("Narrative", width="medium", disabled=True, help="Derived from company description plus sector and industry metadata."),
         "Mkt Cap ($B)": st.column_config.NumberColumn("Mkt Cap ($B)", format="%.1f B", disabled=True),
-        "Today Vol ($M)": st.column_config.NumberColumn("Today Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
-        "5D Avg Vol ($M)": st.column_config.NumberColumn("5D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
-        "20D Avg Vol ($M)": st.column_config.NumberColumn("20D Avg Vol ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 20 trading days."),
-        "5D vs 20D %": st.column_config.NumberColumn("5D vs 20D %", format="%.1f%%", disabled=True, help="How much recent weekly volume is above or below the last 20-day baseline."),
-        "Today vs 5D %": st.column_config.NumberColumn("Today vs 5D %", format="%.1f%%", disabled=True, help="How much today is above or below the recent 5-day baseline."),
-        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True, help="Liquidity plus build plus heat."),
+        "1D Vol ($M)": st.column_config.NumberColumn("1D Vol ($M)", format="%,d", disabled=True, help="Today's dollar volume in millions."),
+        "5D Avg ($M)": st.column_config.NumberColumn("5D Avg ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 5 trading days."),
+        "20D Avg ($M)": st.column_config.NumberColumn("20D Avg ($M)", format="%,d", disabled=True, help="Average daily dollar volume over the last 20 trading days."),
+        "vs 20D Avg": st.column_config.NumberColumn("vs 20D Avg", format="%.1f%%", disabled=True, help="5-day average volume vs 20-day average — is weekly volume trending above the monthly baseline?"),
+        "vs 5D Avg": st.column_config.NumberColumn("vs 5D Avg", format="%.1f%%", disabled=True, help="Today's volume vs 5-day average — how hot is today relative to the recent baseline?"),
+        "Vol Streak": st.column_config.NumberColumn("Vol Streak", format="%d d", disabled=True, help="Consecutive days where volume exceeded the prior 5-day average."),
+        "Auto Score": st.column_config.NumberColumn("Auto Score", format="%.1f", disabled=True, help="Liquidity plus build momentum plus today's heat."),
         "HL Gap": st.column_config.NumberColumn("HL Gap", min_value=0, max_value=1, step=1, help="1 if the name is not on Hyperliquid yet, otherwise 0."),
         "Momentum": st.column_config.NumberColumn("Momentum", min_value=1, max_value=5, step=1, help="Your manual momentum read from 1 to 5."),
         "Full R/R": st.column_config.NumberColumn("Full R/R", format="%.1f", disabled=True, help="Auto Score plus manual bonus."),
@@ -989,8 +953,8 @@ else:
         key="main_table",
         column_order=[
             "Bucket", "Ticker", "Company", "Narrative", "Mkt Cap ($B)",
-            "Today Vol ($M)", "5D Avg Vol ($M)", "20D Avg Vol ($M)",
-            "5D vs 20D %", "Today vs 5D %", "Auto Score",
+            "1D Vol ($M)", "5D Avg ($M)", "20D Avg ($M)",
+            "vs 5D Avg", "vs 20D Avg", "Vol Streak", "Auto Score",
             "HL Gap", "Momentum", "Full R/R", "Recommendation", "Why", "Notes"
         ],
     )

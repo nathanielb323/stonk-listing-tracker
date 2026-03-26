@@ -148,6 +148,17 @@ def compute_metrics(all_data: dict) -> pd.DataFrame:
             else:
                 heat_s = -0.5
 
+            # Count consecutive days (ending today) where daily vol > rolling 5D avg
+            streak = 0
+            dv_vals = local_df["dv"].tolist()
+            for i in range(len(dv_vals) - 1, -1, -1):
+                window = dv_vals[max(0, i - 5):i]
+                ref = sum(window) / len(window) if window else 0
+                if ref > 0 and dv_vals[i] > ref:
+                    streak += 1
+                else:
+                    break
+
             rows.append(
                 {
                     "ticker": ticker,
@@ -157,6 +168,7 @@ def compute_metrics(all_data: dict) -> pd.DataFrame:
                     "build_pct": round(build_pct, 2),
                     "heat_pct": round(heat_pct, 2),
                     "auto_score": round(liq_s + build_s + heat_s, 2),
+                    "vol_streak": streak,
                 }
             )
         except Exception:
@@ -223,6 +235,7 @@ def load_snapshot():
 
 
 def run_screen(force_live=False):
+    # In local dev, use snapshot as primary source unless forced live
     if LOCAL_DEV and not force_live:
         snap = load_snapshot()
         if snap is not None:
@@ -231,9 +244,21 @@ def run_screen(force_live=False):
     tickers, meta = get_sp500_tickers()
     ohlcv = fetch_ohlcv(tickers)
     df = compute_metrics(ohlcv)
+
+    # Fetch profiles; if they come back mostly empty, fall back to cached snapshot profiles
     profiles = fetch_company_profiles(df["ticker"].tolist()) if not df.empty else {}
 
-    if LOCAL_DEV and not df.empty:
+    named = sum(1 for p in profiles.values() if p.get("company_name"))
+    if named < max(1, len(profiles) // 2):
+        snap = load_snapshot()
+        if snap is not None:
+            _, _, cached_profiles = snap
+            for ticker, prof in profiles.items():
+                if not prof.get("company_name") and ticker in cached_profiles:
+                    profiles[ticker] = cached_profiles[ticker]
+
+    # Always persist a fresh snapshot so future runs can use it as fallback
+    if not df.empty:
         save_snapshot(df, meta, profiles)
 
     return df, meta, profiles
